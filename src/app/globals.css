@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+/* Oyun karanlık bir masada oynanıyor: tarayıcının otomatik açık/koyu tema
+   çevirisi renkleri bozmasın diye tema sabitleniyor. */
+html {
+  color-scheme: only dark;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: #0b1020;
+  color: #ffffff;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Cihaz elden ele dolaşırken yanlışlıkla metin seçilmesini engelle;
+     isim girişleri bu kuralı kendi içinde geri açıyor. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+input,
+textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
