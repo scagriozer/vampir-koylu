@@ -21,6 +21,9 @@ export const viewport: Viewport = {
   colorScheme: "dark",
   width: "device-width",
   initialScale: 1,
+  // Ana ekrana eklenip tam ekran açıldığında içerik çentiğin/ada'nın altına
+  // kadar uzansın; güvenli alan boşlukları CSS tarafında env() ile veriliyor.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

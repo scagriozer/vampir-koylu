@@ -12,7 +12,7 @@ const VampirKoyluOyun = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(ellipse_at_top,#1d2440,#0b1020_60%)] text-sm text-white/40">
+      <div className="flex min-h-dvh items-center justify-center bg-[radial-gradient(ellipse_at_top,#1d2440,#0b1020_60%)] text-sm text-white/40">
         Masa hazırlanıyor…
       </div>
     ),

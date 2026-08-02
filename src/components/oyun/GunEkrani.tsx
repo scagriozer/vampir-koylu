@@ -99,12 +99,14 @@ function TartismaBolumu({ durum, onTartismayiBitir }: GunEkraniProps) {
   const sureDoldu = kalan === 0;
   const hayatta = hayattaOlanlar(durum.oyuncular);
 
+  // Telefonda oylama butonu kaydırmadan görünsün diye bu ekran bilinçli olarak
+  // sade ve sıkı tutuldu: kim hayatta bilgisi zaten masada (ölüler 💀 ile işaretli).
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <Baslik
-        ustBaslik={`${durum.gun}. gün · tartışma`}
+        ustBaslik={`${durum.gun}. gün · ${hayatta.length} kişi hayatta`}
         baslik="Kim şüpheli?"
-        aciklama="Sırayla konuşun, savunma yapın, iddiaları test edin. Süre bitince oylamaya geçilir."
+        aciklama="Sırayla konuşun, savunun, çelişkileri yakalayın."
       />
 
       <MasaGorunumu
@@ -133,12 +135,6 @@ function TartismaBolumu({ durum, onTartismayiBitir }: GunEkraniProps) {
           +30 sn
         </Buton>
       </div>
-
-      <Panel className="!py-3">
-        <p className="text-center text-xs text-white/60">
-          Hayatta olanlar ({hayatta.length}): {hayatta.map((o) => o.ad).join(" · ")}
-        </p>
-      </Panel>
 
       <Buton tamGenislik onClick={onTartismayiBitir}>
         🗳️ Oylamaya geç

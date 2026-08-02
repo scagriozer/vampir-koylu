@@ -102,7 +102,7 @@ export function KurulumEkrani({ onBasla }: KurulumEkraniProps) {
 
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
           {isimler.map((isim, i) => (
-            <label key={i} className="flex items-center gap-2 rounded-xl bg-black/20 px-3 py-2">
+            <label key={i} className="flex min-h-11 items-center gap-2 rounded-xl bg-black/20 px-3 py-2">
               <span className="w-6 shrink-0 text-center text-xs font-bold text-amber-300/80">
                 {i + 1}
               </span>
@@ -113,7 +113,8 @@ export function KurulumEkrani({ onBasla }: KurulumEkraniProps) {
                   setIsimler((onceki) => onceki.map((v, j) => (j === i ? e.target.value : v)))
                 }
                 onFocus={(e) => e.currentTarget.select()}
-                className="w-full bg-transparent text-sm font-semibold text-white outline-none placeholder:text-white/30"
+                // text-base (16px): daha küçüğünde iOS Safari alana dokununca sayfayı yakınlaştırır.
+                className="w-full bg-transparent text-base font-semibold text-white outline-none placeholder:text-white/30"
                 placeholder={`Oyuncu ${i + 1}`}
                 aria-label={`${i + 1}. oyuncunun adı`}
               />
@@ -128,7 +129,7 @@ export function KurulumEkrani({ onBasla }: KurulumEkraniProps) {
           <button
             type="button"
             onClick={() => setDagilim(varsayilanDagilim(oyuncuSayisi))}
-            className="text-xs font-semibold text-amber-300 underline-offset-2 hover:underline"
+            className="-my-3 -mr-2 inline-flex min-h-11 items-center px-2 text-xs font-semibold text-amber-300 underline-offset-2 hover:underline"
           >
             Önerilene dön
           </button>
@@ -197,7 +198,7 @@ export function KurulumEkrani({ onBasla }: KurulumEkraniProps) {
             <select
               value={ayarlar.tartismaSuresi}
               onChange={(e) => setAyarlar((a) => ({ ...a, tartismaSuresi: Number(e.target.value) }))}
-              className="rounded-lg bg-white/10 px-3 py-2 text-sm font-bold text-white outline-none"
+              className="min-h-11 rounded-lg bg-white/10 px-3 py-2 text-base font-bold text-white outline-none"
               aria-label="Tartışma süresi"
             >
               {[60, 120, 180, 240, 300].map((sn) => (

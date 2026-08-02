@@ -30,7 +30,9 @@ export function Buton({
   return (
     <button
       {...props}
-      className={`inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold uppercase tracking-wide transition-colors disabled:cursor-not-allowed ${
+      // min-h-11: iOS'ta önerilen 44pt dokunma hedefi.
+      // touch-manipulation: hızlı arka arkaya dokunuşta çift dokunma yakınlaştırmasını kapatır.
+      className={`inline-flex min-h-11 min-w-11 touch-manipulation items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold uppercase tracking-wide transition-colors disabled:cursor-not-allowed ${
         TONLAR[ton]
       } ${tamGenislik ? "w-full" : ""} ${className}`}
     >

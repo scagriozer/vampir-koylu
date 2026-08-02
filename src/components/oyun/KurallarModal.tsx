@@ -46,7 +46,9 @@ export function KurallarModal({ onKapat }: { onKapat: () => void }) {
       onClick={onKapat}
     >
       <div
-        className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-t-3xl border border-white/10 bg-[#131a2f] p-6 sm:rounded-3xl"
+        className="max-h-[85dvh] w-full max-w-lg overflow-y-auto overscroll-contain rounded-t-3xl border border-white/10 bg-[#131a2f] p-6 sm:rounded-3xl"
+        // Alt kenar telefonun ana ekran çubuğunun altında kalmasın.
+        style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-xl font-black text-white">Nasıl oynanır?</h3>

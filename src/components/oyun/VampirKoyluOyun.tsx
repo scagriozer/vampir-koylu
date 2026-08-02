@@ -89,23 +89,33 @@ export function VampirKoyluOyun() {
 
   return (
     <div
-      className={`min-h-screen transition-colors duration-700 ${
+      // min-h-dvh: iOS Safari'de adres çubuğu açılıp kapanırken ekran boyu doğru kalsın.
+      className={`min-h-dvh transition-colors duration-700 ${
         gece
           ? "bg-[radial-gradient(ellipse_at_top,#1b2450,#080b18_60%)]"
           : "bg-[radial-gradient(ellipse_at_top,#1d2440,#0b1020_60%)]"
       }`}
     >
-      <div ref={tepeRef} className="mx-auto w-full max-w-2xl scroll-mt-4 px-4 pb-16 pt-6 sm:px-6">
+      <div
+        ref={tepeRef}
+        className="mx-auto w-full max-w-2xl scroll-mt-4 px-4 pb-16 pt-6 sm:px-6"
+        style={{
+          // Çentik / ana ekran çubuğu içeriği kesmesin (tam ekran PWA modu).
+          paddingTop: "calc(1.5rem + env(safe-area-inset-top))",
+          paddingBottom: "calc(4rem + env(safe-area-inset-bottom))",
+        }}
+      >
         <div className="mb-5 flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="truncate text-base font-black leading-tight text-white sm:text-lg">
               🧛 Vampir Köylü
             </p>
+            {/* Aşama adı zaten ekranın başlığında; dar telefonlarda kesilmesin diye
+                üst çubukta yalnızca gün ve hayatta kalan sayısı gösteriliyor. */}
             <p className="truncate text-xs text-white/50">
-              {ASAMA_ETIKETI[durum.asama] ?? ""}
               {durum.oyuncular.length > 0 && durum.asama !== "kurulum"
-                ? ` · ${durum.gun}. gün · ${hayattaSayisi}/${durum.oyuncular.length} hayatta`
-                : ""}
+                ? `${durum.gun}. gün · ${hayattaSayisi}/${durum.oyuncular.length} hayatta`
+                : (ASAMA_ETIKETI[durum.asama] ?? "")}
             </p>
           </div>
           <div className="flex shrink-0 gap-2">
