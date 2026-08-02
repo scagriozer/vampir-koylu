@@ -33,7 +33,7 @@ export const ROLLER: Record<RolId, RolTanim> = {
     emoji: "🧛",
     ozet: "Geceleri köyden birini avlar.",
     gorev:
-      "Diğer vampirlerle birlikte her gece bir köylü seçersiniz. Gündüz köylü gibi davranıp şüpheyi başkasına yöneltin.",
+      "Her gece bir köylü seçersin. Vampirler birbirini tanır; farklı kişileri seçerseniz kurban çoğunluğa göre belirlenir. Gündüz köylü gibi davranıp şüpheyi başkasına yöneltin.",
     geceGorevi: true,
     renk: ["#7f1d1d", "#2b0a0a"],
   },
@@ -72,9 +72,6 @@ export const ROLLER: Record<RolId, RolTanim> = {
   },
 };
 
-/** Gece sırası: vampirler → doktor → gözcü */
-export const GECE_SIRASI: RolId[] = ["vampir", "doktor", "gozcu"];
-
 export type Asama =
   | "kurulum"
   | "dagitim"
@@ -101,12 +98,19 @@ export interface Ayarlar {
   gizliOylama: boolean;
   /** Doktor üst üste aynı kişiyi koruyabilir mi? */
   doktorArtArdaAyniKisi: boolean;
+  /**
+   * Ölen ya da sürgün edilen oyuncunun rolü masaya açıklansın mı?
+   * Açıkken köy bilgi kazanır (yeni başlayanlar için daha kolay),
+   * kapalıyken vampirlerin blöf alanı genişler.
+   */
+  olulerinRoluAcik: boolean;
 }
 
 export const VARSAYILAN_AYARLAR: Ayarlar = {
   tartismaSuresi: 180,
   gizliOylama: true,
   doktorArtArdaAyniKisi: false,
+  olulerinRoluAcik: true,
 };
 
 export interface GunlukKaydi {
@@ -128,12 +132,22 @@ export interface OyunDurumu {
   dagitimAcik: boolean;
 
   // — gece —
-  geceAdim: number;
-  vampirHedef: number | null;
-  doktorHedef: number | null;
-  gozcuHedef: number | null;
-  gozcuSonucGoruldu: boolean;
-  sonKurtarilan: number | null;
+  /**
+   * Cihaz her gece koltuk sırasıyla hayatta olan HER oyuncuya uğrar; bu, sıradaki
+   * oyuncunun hayatta olanlar listesindeki konumudur. Rol çağırmak yerine herkesin
+   * sırayla geçmesi, ekranın dışını herkeste aynı yaparak rolleri gizler.
+   */
+  geceSira: number;
+  /** vampir oyuncu id → seçtiği kurban */
+  vampirSecimleri: Record<number, number>;
+  /** o gece korunan oyuncu id'leri (birden çok doktor olabilir) */
+  korunanlar: number[];
+  /** gözcü oyuncu id → incelediği oyuncu */
+  gozcuIncelemeleri: Record<number, number>;
+  /** doktor oyuncu id → önceki gece koruduğu oyuncu (art arda aynı kişi kuralı) */
+  sonKorunanlar: Record<number, number>;
+  /** Sırası gelen oyuncunun henüz onaylanmamış seçimi */
+  buSiradakiSecim: number | null;
 
   // — şafak —
   /** Gece sonuçları uygulanıp köye duyuruldu mu? (yenilemeye karşı korumalı) */
@@ -157,7 +171,7 @@ export interface OylamaSonucu {
   cekimser: number;
 }
 
-export const OYUN_SURUMU = 1;
+export const OYUN_SURUMU = 2;
 export const MIN_OYUNCU = 4;
 export const MAKS_OYUNCU = 12;
 
@@ -209,15 +223,34 @@ export function kazananKontrol(oyuncular: Oyuncu[]): Takim | null {
   return null;
 }
 
-/** O gece sırayla uyandırılacak roller (hayatta kimse kalmadıysa atlanır). */
-export function geceAdimlari(oyuncular: Oyuncu[]): RolId[] {
-  return GECE_SIRASI.filter((rol) => rolSayisi(oyuncular, rol) > 0);
+/** Gece sırasında cihazı elinde tutan oyuncu (hayatta olanlar, koltuk sırasıyla). */
+export function geceSirasindaki(durum: OyunDurumu): Oyuncu | undefined {
+  return hayattaOlanlar(durum.oyuncular)[durum.geceSira];
 }
 
 /** Doktorun bu gece koruyamayacağı oyuncu (art arda aynı kişi kuralı). */
-export function doktorYasakHedef(durum: OyunDurumu): number | null {
+export function doktorYasakHedef(durum: OyunDurumu, doktorId: number): number | null {
   if (durum.ayarlar.doktorArtArdaAyniKisi) return null;
-  return durum.sonKurtarilan;
+  return durum.sonKorunanlar[doktorId] ?? null;
+}
+
+/**
+ * Vampirlerin seçimlerinden kurbanı belirler. Vampirler aynı kişide birleşmezse
+ * en çok oy alan; eşitlikte oy alanlar arasından rastgele biri seçilir.
+ */
+export function vampirKurbani(
+  secimler: Record<number, number>,
+  rastgele: () => number = Math.random,
+): number | null {
+  const sayac = new Map<number, number>();
+  Object.values(secimler).forEach((hedef) => {
+    if (hedef === undefined || hedef === null) return;
+    sayac.set(hedef, (sayac.get(hedef) ?? 0) + 1);
+  });
+  if (sayac.size === 0) return null;
+  const enYuksek = Math.max(...sayac.values());
+  const basaBas = [...sayac.entries()].filter(([, adet]) => adet === enYuksek).map(([id]) => id);
+  return basaBas[Math.floor(rastgele() * basaBas.length)];
 }
 
 function bosDurum(ayarlar: Ayarlar): OyunDurumu {
@@ -229,12 +262,12 @@ function bosDurum(ayarlar: Ayarlar): OyunDurumu {
     ayarlar,
     dagitimSira: 0,
     dagitimAcik: false,
-    geceAdim: 0,
-    vampirHedef: null,
-    doktorHedef: null,
-    gozcuHedef: null,
-    gozcuSonucGoruldu: false,
-    sonKurtarilan: null,
+    geceSira: 0,
+    vampirSecimleri: {},
+    korunanlar: [],
+    gozcuIncelemeleri: {},
+    sonKorunanlar: {},
+    buSiradakiSecim: null,
     safakAcildi: false,
     safakOlen: null,
     oySira: 0,
@@ -276,9 +309,8 @@ export type OyunAksiyonu =
   | { tip: "kartiKapat" }
   | { tip: "geceyeBasla" }
   | { tip: "geceHedefSec"; hedefId: number }
-  | { tip: "gozcuSonucunuGor" }
-  | { tip: "geceAdimiTamamla" }
-  | { tip: "safagiGec" }
+  | { tip: "geceSirasiniTamamla" }
+  | { tip: "safagiGec"; rastgele?: () => number }
   | { tip: "tartismayaGec" }
   | { tip: "tartismayiBitir" }
   | { tip: "oyVer"; hedefId: number | null }
@@ -294,25 +326,28 @@ function log(durum: OyunDurumu, kayit: GunlukKaydi): GunlukKaydi[] {
 
 function geceSifirla(): Partial<OyunDurumu> {
   return {
-    geceAdim: 0,
-    vampirHedef: null,
-    doktorHedef: null,
-    gozcuHedef: null,
-    gozcuSonucGoruldu: false,
+    geceSira: 0,
+    vampirSecimleri: {},
+    korunanlar: [],
+    gozcuIncelemeleri: {},
+    buSiradakiSecim: null,
     safakAcildi: false,
     safakOlen: null,
   };
 }
 
 /** Şafak sökerken gece seçimlerini uygular, ölen varsa döndürür. */
-function geceyiUygula(durum: OyunDurumu): { oyuncular: Oyuncu[]; olen: number | null } {
-  const hedef = durum.vampirHedef;
-  if (hedef === null) return { oyuncular: durum.oyuncular, olen: null };
-  if (durum.doktorHedef === hedef) return { oyuncular: durum.oyuncular, olen: null };
+function geceyiUygula(
+  durum: OyunDurumu,
+  rastgele: () => number = Math.random,
+): { oyuncular: Oyuncu[]; olen: number | null; hedef: number | null } {
+  const hedef = vampirKurbani(durum.vampirSecimleri, rastgele);
+  if (hedef === null) return { oyuncular: durum.oyuncular, olen: null, hedef };
+  if (durum.korunanlar.includes(hedef)) return { oyuncular: durum.oyuncular, olen: null, hedef };
   const oyuncular = durum.oyuncular.map((o) =>
     o.id === hedef ? { ...o, hayatta: false, olumNedeni: "vampir" as const, olumGunu: durum.gun } : o,
   );
-  return { oyuncular, olen: hedef };
+  return { oyuncular, olen: hedef, hedef };
 }
 
 export function oylariSay(oylar: Record<number, number | null>): OylamaSonucu {
@@ -371,33 +406,48 @@ export function oyunReducer(durum: OyunDurumu, aksiyon: OyunAksiyonu): OyunDurum
     case "geceyeBasla":
       return { ...durum, asama: "gece", ...geceSifirla() };
 
-    case "geceHedefSec": {
-      const adimlar = geceAdimlari(durum.oyuncular);
-      const rol = adimlar[durum.geceAdim];
-      if (rol === "vampir") return { ...durum, vampirHedef: aksiyon.hedefId };
-      if (rol === "doktor") return { ...durum, doktorHedef: aksiyon.hedefId };
-      if (rol === "gozcu") return { ...durum, gozcuHedef: aksiyon.hedefId };
-      return durum;
-    }
+    // Seçim önce geçici alanda tutulur; oyuncu sırasını tamamlayana kadar
+    // fikrini değiştirebilir, devredince kalıcı olarak işlenir.
+    case "geceHedefSec":
+      return { ...durum, buSiradakiSecim: aksiyon.hedefId };
 
-    case "gozcuSonucunuGor":
-      return { ...durum, gozcuSonucGoruldu: true };
+    case "geceSirasiniTamamla": {
+      const oyuncu = geceSirasindaki(durum);
+      const secim = durum.buSiradakiSecim;
+      const islenmis: Partial<OyunDurumu> = {};
 
-    case "geceAdimiTamamla": {
-      const adimlar = geceAdimlari(durum.oyuncular);
-      const sonraki = durum.geceAdim + 1;
-      if (sonraki >= adimlar.length) return { ...durum, geceAdim: sonraki, asama: "safak" };
-      return { ...durum, geceAdim: sonraki };
+      if (oyuncu && secim !== null) {
+        if (oyuncu.rol === "vampir") {
+          islenmis.vampirSecimleri = { ...durum.vampirSecimleri, [oyuncu.id]: secim };
+        } else if (oyuncu.rol === "doktor") {
+          islenmis.korunanlar = [...durum.korunanlar, secim];
+          islenmis.sonKorunanlar = { ...durum.sonKorunanlar, [oyuncu.id]: secim };
+        } else if (oyuncu.rol === "gozcu") {
+          islenmis.gozcuIncelemeleri = { ...durum.gozcuIncelemeleri, [oyuncu.id]: secim };
+        }
+      }
+
+      const sonraki = durum.geceSira + 1;
+      const bitti = sonraki >= hayattaOlanlar(durum.oyuncular).length;
+      return {
+        ...durum,
+        ...islenmis,
+        geceSira: sonraki,
+        buSiradakiSecim: null,
+        asama: bitti ? "safak" : durum.asama,
+      };
     }
 
     case "safagiGec": {
       if (durum.safakAcildi) return durum;
-      const { oyuncular, olen } = geceyiUygula(durum);
+      const { oyuncular, olen, hedef } = geceyiUygula(durum, aksiyon.rastgele);
       const olenOyuncu = oyuncuBul(oyuncular, olen);
-      const kurtarildi = durum.vampirHedef !== null && durum.doktorHedef === durum.vampirHedef;
+      const kurtarildi = hedef !== null && durum.korunanlar.includes(hedef);
       const kazanan = kazananKontrol(oyuncular);
       const metin = olenOyuncu
-        ? `${durum.gun}. gece: ${olenOyuncu.ad} vampirlere kurban gitti.`
+        ? `${durum.gun}. gece: ${olenOyuncu.ad} vampirlere kurban gitti.${
+            durum.ayarlar.olulerinRoluAcik ? ` Kimliği: ${ROLLER[olenOyuncu.rol].ad}.` : ""
+          }`
         : kurtarildi
           ? `${durum.gun}. gece: Doktor tam zamanında yetişti, kimse ölmedi.`
           : `${durum.gun}. gece: Köyde kimse ölmedi.`;
@@ -406,7 +456,6 @@ export function oyunReducer(durum: OyunDurumu, aksiyon: OyunAksiyonu): OyunDurum
         oyuncular,
         safakAcildi: true,
         safakOlen: olen,
-        sonKurtarilan: durum.doktorHedef,
         asama: kazanan ? "bitis" : "safak",
         kazanan,
         gunluk: log(durum, { gun: durum.gun, tip: "gece", metin }),
@@ -444,7 +493,9 @@ export function oyunReducer(durum: OyunDurumu, aksiyon: OyunAksiyonu): OyunDurum
             );
       const infazEdilen = oyuncuBul(oyuncular, infaz);
       const metin = infazEdilen
-        ? `${durum.gun}. gün: Köy oyladı, ${infazEdilen.ad} sürgün edildi. Kimliği: ${ROLLER[infazEdilen.rol].ad}.`
+        ? `${durum.gun}. gün: Köy oyladı, ${infazEdilen.ad} sürgün edildi.${
+            durum.ayarlar.olulerinRoluAcik ? ` Kimliği: ${ROLLER[infazEdilen.rol].ad}.` : ""
+          }`
         : `${durum.gun}. gün: Oylar bölündü, kimse sürgün edilmedi.`;
       const kazanan = kazananKontrol(oyuncular);
       return {

@@ -56,12 +56,15 @@ function SafakBolumu({ durum, onSafagiGec, onTartismayaGec }: GunEkraniProps) {
         baslik={olen ? `${olen.ad} öldürüldü` : "Kimse ölmedi"}
         aciklama={
           olen
-            ? `Kimliği: ${ROLLER[olen.rol].emoji} ${ROLLER[olen.rol].ad}. Artık konuşamaz ve oy kullanamaz.`
+            ? durum.ayarlar.olulerinRoluAcik
+              ? `Kimliği: ${ROLLER[olen.rol].emoji} ${ROLLER[olen.rol].ad}. Artık konuşamaz ve oy kullanamaz.`
+              : "Kimliği açıklanmıyor. Artık konuşamaz ve oy kullanamaz."
             : "Vampirler eli boş döndü ya da doktor tam zamanında yetişti."
         }
       />
       <MasaGorunumu
         oyuncular={durum.oyuncular}
+        oluRolleriGoster={durum.ayarlar.olulerinRoluAcik}
         merkez={
           <div className="space-y-1">
             <p className="text-4xl" aria-hidden>
@@ -111,6 +114,7 @@ function TartismaBolumu({ durum, onTartismayiBitir }: GunEkraniProps) {
 
       <MasaGorunumu
         oyuncular={durum.oyuncular}
+        oluRolleriGoster={durum.ayarlar.olulerinRoluAcik}
         merkez={
           <div className="space-y-1">
             <p
@@ -192,6 +196,7 @@ function OylamaBolumu({ durum, onOyVer }: GunEkraniProps) {
 
       <MasaGorunumu
         oyuncular={durum.oyuncular}
+        oluRolleriGoster={durum.ayarlar.olulerinRoluAcik}
         secilebilirIdler={hayatta.filter((o) => o.id !== oyVeren.id).map((o) => o.id)}
         seciliId={secim}
         onSec={setSecim}
@@ -250,7 +255,9 @@ function OylamaSonucBolumu({ durum, onSonucuOnayla }: GunEkraniProps) {
         baslik={hedef ? `${hedef.ad} sürgün edildi` : "Kimse sürgün edilmedi"}
         aciklama={
           hedef
-            ? `Gerçek kimliği: ${ROLLER[hedef.rol].emoji} ${ROLLER[hedef.rol].ad}`
+            ? durum.ayarlar.olulerinRoluAcik
+              ? `Gerçek kimliği: ${ROLLER[hedef.rol].emoji} ${ROLLER[hedef.rol].ad}`
+              : "Kimliği açıklanmıyor — köy doğru kişiyi mi astı, bilmiyor."
             : sonuc.berabere
               ? "Oylar başa baş bitti; köy karar veremedi."
               : "Herkes çekimser kaldı."

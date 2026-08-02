@@ -14,11 +14,12 @@ const AKIS = [
   {
     baslik: "2 · Gece",
     metin:
-      "Uygulama anlatıcı olur. Sırayla vampirleri, doktoru ve gözcüyü uyandırır; her biri cihazda gizlice seçimini yapar.",
+      "Cihaz koltuk sırasıyla herkese uğrar. Vampir avını, doktor koruduğu kişiyi, gözcü incelediği kişiyi seçer; gece görevi olmayan köylü de sırasını alıp devreder. Ekranın dışı herkeste aynı olduğu için kimse kimsenin rolünü çıkaramaz.",
   },
   {
     baslik: "3 · Şafak",
-    metin: "Gece kimin öldüğü açıklanır. Ölen oyuncu konuşamaz ve oy kullanamaz.",
+    metin:
+      "Gece kimin öldüğü açıklanır. Ölen oyuncu konuşamaz ve oy kullanamaz. Kimliğinin açıklanıp açıklanmayacağı kurulumdaki ayara bağlıdır.",
   },
   {
     baslik: "4 · Tartışma",
@@ -27,7 +28,7 @@ const AKIS = [
   {
     baslik: "5 · Oylama",
     metin:
-      "Hayatta olan herkes sırayla oy verir. En çok oyu alan sürgün edilir ve kimliği açıklanır. Beraberlikte kimse gitmez.",
+      "Hayatta olan herkes sırayla oy verir. En çok oyu alan sürgün edilir. Beraberlikte kimse gitmez.",
   },
   {
     baslik: "6 · Kazanma",

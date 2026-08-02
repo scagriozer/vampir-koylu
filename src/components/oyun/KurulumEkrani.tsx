@@ -216,6 +216,12 @@ export function KurulumEkrani({ onBasla }: KurulumEkraniProps) {
             onDegis={(v) => setAyarlar((a) => ({ ...a, gizliOylama: v }))}
           />
           <SecenekSatiri
+            baslik="Ölenlerin kimliği açıklansın"
+            aciklama="Kapalıyken sürgün edilen ya da öldürülen kişinin rolü gizli kalır — vampirler için daha kolay, köy için daha zor"
+            acik={ayarlar.olulerinRoluAcik}
+            onDegis={(v) => setAyarlar((a) => ({ ...a, olulerinRoluAcik: v }))}
+          />
+          <SecenekSatiri
             baslik="Doktor üst üste aynı kişiyi koruyabilir"
             aciklama="Kapalıyken önceki gece korunan kişi tekrar seçilemez"
             acik={ayarlar.doktorArtArdaAyniKisi}

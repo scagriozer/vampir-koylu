@@ -54,7 +54,7 @@ export function VampirKoyluOyun() {
 
   // Her yeni adımda ekranın başına dön: cihaz elden ele geçerken sıradaki oyuncu
   // sayfanın ortasında değil, adımın başında karşılansın.
-  const adimAnahtari = `${durum.asama}-${durum.gun}-${durum.geceAdim}-${durum.oySira}-${durum.dagitimSira}-${durum.dagitimAcik}`;
+  const adimAnahtari = `${durum.asama}-${durum.gun}-${durum.geceSira}-${durum.oySira}-${durum.dagitimSira}-${durum.dagitimAcik}`;
   useEffect(() => {
     if (ilkRenderRef.current) {
       ilkRenderRef.current = false;
@@ -143,11 +143,10 @@ export function VampirKoyluOyun() {
           />
         ) : durum.asama === "gece" ? (
           <GeceEkrani
-            key={`${durum.gun}-${durum.geceAdim}`}
+            key={`${durum.gun}-${durum.geceSira}`}
             durum={durum}
             onHedefSec={(hedefId) => dispatch({ tip: "geceHedefSec", hedefId })}
-            onGozcuSonucunuGor={() => dispatch({ tip: "gozcuSonucunuGor" })}
-            onAdimTamamla={() => dispatch({ tip: "geceAdimiTamamla" })}
+            onSirayiTamamla={() => dispatch({ tip: "geceSirasiniTamamla" })}
           />
         ) : durum.asama === "bitis" ? (
           <BitisEkrani durum={durum} onYenidenBasla={() => dispatch({ tip: "yenidenBasla" })} />

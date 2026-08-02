@@ -15,6 +15,8 @@ interface MasaGorunumuProps {
   rolleriGoster?: boolean;
   /** Yalnızca bu oyuncuların rolü açık gösterilir (ör. vampirler birbirini görür). */
   rolGorunenIdler?: number[];
+  /** Ölenlerin rolü masada görünsün mü? (oyun ayarı) */
+  oluRolleriGoster?: boolean;
   /** Koltuk altında görünen küçük rozetler (ör. oy sayısı, "vampir dostun") */
   rozetler?: Record<number, string>;
   gece?: boolean;
@@ -32,6 +34,7 @@ export function MasaGorunumu({
   onSec,
   rolleriGoster = false,
   rolGorunenIdler,
+  oluRolleriGoster = true,
   rozetler,
   gece = false,
 }: MasaGorunumuProps) {
@@ -59,7 +62,9 @@ export function MasaGorunumu({
         const secilebilir = !!secilebilirIdler?.includes(oyuncu.id) && !!onSec;
         const secili = seciliId === oyuncu.id;
         const rolGorunur =
-          rolleriGoster || !oyuncu.hayatta || !!rolGorunenIdler?.includes(oyuncu.id);
+          rolleriGoster ||
+          (!oyuncu.hayatta && oluRolleriGoster) ||
+          !!rolGorunenIdler?.includes(oyuncu.id);
         const rol = ROLLER[oyuncu.rol];
 
         return (

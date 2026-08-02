@@ -13,12 +13,14 @@ dersen tam ekran uygulama gibi çalışır.
 
 1. **Kurulum** — İsimleri masadaki oturma sırasına göre yaz, rol dağılımını ve ayarları seç.
 2. **Rol dağıtımı** — Cihaz sırayla her oyuncuya verilir. Herkes kartını gizlice açar, ezberler, kapatır.
-3. **Gece** — Uygulama sırayla vampirleri, doktoru ve gözcüyü uyandırır; her biri masadan hedefini seçer.
-   Vampirler bu ekranda yalnızca birbirini görür, diğer roller kapalı kalır.
-4. **Şafak** — Gece kimin öldüğü (ya da doktorun kimi kurtardığı) açıklanır, ölenin kimliği açılır.
+3. **Gece** — Cihaz koltuk sırasıyla **herkese** uğrar. Vampir avını, doktor koruduğu kişiyi, gözcü
+   incelediği kişiyi seçer; gece görevi olmayan köylü de sırasını alıp devreder. Devir ve kapanış
+   ekranları her oyuncuda birebir aynı olduğundan masadakiler ekrandan kimsenin rolünü çıkaramaz.
+   Vampirler yalnızca birbirini tanır; farklı kişileri seçerlerse kurban çoğunluğa göre belirlenir.
+4. **Şafak** — Gece kimin öldüğü (ya da doktorun kimi kurtardığı) açıklanır.
 5. **Tartışma** — Geri sayım boyunca herkes konuşur; süre duraklatılabilir, +30 sn eklenebilir.
-6. **Oylama** — Hayatta olan herkes sırayla oy verir. En çok oyu alan sürgün edilir ve kimliği açılır;
-   oylar eşitse kimse gitmez.
+6. **Oylama** — Hayatta olan herkes sırayla oy verir. En çok oyu alan sürgün edilir; oylar eşitse
+   kimse gitmez.
 7. **Bitiş** — Tüm roller açılır, kazanan taraf ve olay günlüğü listelenir.
 
 **Kazanma koşulu:** Tüm vampirler elenirse köy kazanır. Vampir sayısı köylü sayısına eşitlenirse
@@ -28,7 +30,7 @@ vampirler kazanır.
 
 | Rol | Takım | Görev |
 | --- | --- | --- |
-| 🧛 Vampir | Vampir | Her gece diğer vampirlerle birlikte bir köylü seçer. |
+| 🧛 Vampir | Vampir | Her gece bir köylü seçer; vampirler birbirini tanır, ayrışırlarsa çoğunluk kazanır. |
 | 💉 Doktor | Köy | Her gece bir kişiyi korur; o kişi o gece saldırıdan kurtulur. |
 | 🔮 Gözcü | Köy | Her gece bir oyuncuyu inceler, vampir olup olmadığını öğrenir. |
 | 🌾 Köylü | Köy | Gece görevi yok; gündüz tartışmasında doğru oyu vermeye çalışır. |
@@ -39,6 +41,9 @@ vampirler kazanır.
 - **Gizli oylama** — Açıkken cihaz elden ele dolaşır ve kimse kimin oyunu görmez; kapalıyken
   oylar sırayla açıkça girilir ve masada çalışan sayım görünür.
 - **Doktor üst üste aynı kişiyi koruyabilir** — Kapalıyken önceki gece korunan kişi tekrar seçilemez.
+- **Ölenlerin kimliği açıklansın** — Açıkken ölen ya da sürgün edilen kişinin rolü masaya duyurulur
+  (köy bilgi kazanır, yeni başlayanlar için kolay). Kapalıyken kimlik gizli kalır; köy doğru kişiyi
+  asıp asmadığını bilemez, vampirlerin blöf alanı genişler. Kimlikler her hâlükârda oyun sonunda açılır.
 
 ## Geliştirme
 
