@@ -6,6 +6,9 @@ ve gündüz oylamasını yürütür. Ayrı bir anlatıcıya gerek yoktur, herkes
 
 **4–12 oyuncu.** Varsayılan masa 6 kişilik: 2 vampir, 1 doktor, 1 gözcü, 2 köylü.
 
+**Oyna:** https://scagriozer.github.io/vampir-koylu/ — telefonda açıp *Paylaş → Ana Ekrana Ekle*
+dersen tam ekran uygulama gibi çalışır.
+
 ## Nasıl oynanır?
 
 1. **Kurulum** — İsimleri masadaki oturma sırasına göre yaz, rol dağılımını ve ayarları seç.
@@ -48,6 +51,21 @@ npm run lint
 
 Next.js App Router + React + Tailwind CSS. Sunucu, veritabanı ya da ortam değişkeni gerektirmez;
 oyun tamamen tarayıcıda çalışır ve statik olarak dağıtılabilir.
+
+## Yayınlama
+
+`main` dalına her push'ta `.github/workflows/pages.yml` statik çıktıyı üretip GitHub Pages'e
+yayınlar. İlk kullanımda depo ayarlarından **Settings → Pages → Source: GitHub Actions**
+seçilmelidir (private depolarda Pages ücretli plan ister).
+
+Pages alt yolda yayınladığı için derleme `PAGES_BASE_PATH` ortam değişkeniyle yapılır; iş akışı
+bunu depo adından otomatik verir. Değişken boşken uygulama kök dizinde çalışır, bu yüzden aynı
+kod Vercel gibi bir yere de değişiklik gerektirmeden dağıtılabilir:
+
+```bash
+npm run build                              # kök dizin için (out/)
+PAGES_BASE_PATH=/vampir-koylu npm run build   # alt yol için
+```
 
 ## Mimari
 

@@ -1,0 +1,53 @@
+name: GitHub Pages'e yayınla
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Aynı anda tek yayın çalışsın; devam eden bir yayın iptal edilmesin.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  derle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Statik dosyaları üret
+        # Pages, depo adıyla aynı alt yolda yayınlar: https://<kullanıcı>.github.io/<depo>/
+        env:
+          PAGES_BASE_PATH: /${{ github.event.repository.name }}
+        run: npm run build
+
+      - name: Jekyll işlemesini kapat
+        # Next çıktısındaki _next klasörü aksi halde yok sayılır.
+        run: touch out/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: out
+
+  yayinla:
+    needs: derle
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.dagitim.outputs.page_url }}
+    steps:
+      - id: dagitim
+        uses: actions/deploy-pages@v4
