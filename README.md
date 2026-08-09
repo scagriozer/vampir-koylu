@@ -23,8 +23,10 @@ dersen tam ekran uygulama gibi çalışır.
    kimse gitmez.
 7. **Bitiş** — Tüm roller açılır, kazanan taraf ve olay günlüğü listelenir.
 
-**Kazanma koşulu:** Tüm vampirler elenirse köy kazanır. Vampir sayısı köylü sayısına eşitlenirse
-vampirler kazanır.
+**Kazanma koşulu:** Tüm vampirler elenirse köy kazanır; vampir sayısı diğerlerine eşitlenirse
+vampirler kazanır. Soytarı asılırsa oyunu tek başına kazanır. Ayrıca doktor hayatta değilken gece
+saldırısı sayıyı eşitliğe getirecekse, formalite gecesi oynatılmaz: oyun geceye girmeden vampir
+zaferiyle biter.
 
 ### Roller
 
@@ -34,10 +36,12 @@ vampirler kazanır.
 | 💉 Doktor | Köy | Her gece bir kişiyi korur; o kişi o gece saldırıdan kurtulur. |
 | 🔮 Gözcü | Köy | Her gece bir oyuncuyu inceler, vampir olup olmadığını öğrenir. |
 | 🌾 Köylü | Köy | Gece görevi yok; gündüz tartışmasında doğru oyu vermeye çalışır. |
+| 🃏 Soytarı | Tarafsız | Tek amacı kendini astırmak: asılırsa oyunu tek başına kazanır ve oyun biter. Gece ölürse kaybeder. |
+| 🎒 Sağ Kalan | Tarafsız | Oyun bittiğinde hayattaysa, kazanan kim olursa olsun o da kazanır. |
 
 ### Ayarlar
 
-- **Tartışma süresi** — 1–5 dakika arası geri sayım.
+- **Tartışma süresi** — 1–5 dakika arası geri sayım (varsayılan 4 dk).
 - **Gizli oylama** — Açıkken cihaz elden ele dolaşır ve kimse kimin oyunu görmez; kapalıyken
   oylar sırayla açıkça girilir ve masada çalışan sayım görünür.
 - **Doktor üst üste aynı kişiyi koruyabilir** — Kapalıyken önceki gece korunan kişi tekrar seçilemez.

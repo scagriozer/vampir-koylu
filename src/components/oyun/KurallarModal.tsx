@@ -3,7 +3,7 @@
 import { ROLLER, type RolId } from "@/lib/oyun/vampirKoylu";
 import { Buton } from "./ui";
 
-const ROL_SIRASI: RolId[] = ["vampir", "doktor", "gozcu", "koylu"];
+const ROL_SIRASI: RolId[] = ["vampir", "doktor", "gozcu", "koylu", "soytari", "sagkalan"];
 
 const AKIS = [
   {
@@ -33,7 +33,7 @@ const AKIS = [
   {
     baslik: "6 · Kazanma",
     metin:
-      "Tüm vampirler elenirse köy kazanır. Vampir sayısı köylü sayısına eşitlenirse vampirler kazanır.",
+      "Tüm vampirler elenirse köy kazanır; vampir sayısı diğerlerine eşitlenirse vampirler kazanır. Soytarı asılırsa oyunu tek başına kazanır ve oyun anında biter. Sağ Kalan, oyun sonunda hayattaysa kazananlara katılır. Doktor hayatta değilken gece saldırısı sayıyı eşitliğe getirecekse oyun geceye girmeden vampir zaferiyle biter.",
   },
 ];
 
@@ -73,10 +73,12 @@ export function KurallarModal({ onKapat }: { onKapat: () => void }) {
                       className={`ml-1 rounded-full px-1.5 py-0.5 text-[0.6rem] font-bold uppercase ${
                         rol.takim === "vampir"
                           ? "bg-red-500/20 text-red-200"
-                          : "bg-emerald-500/20 text-emerald-200"
+                          : rol.takim === "koy"
+                            ? "bg-emerald-500/20 text-emerald-200"
+                            : "bg-fuchsia-500/20 text-fuchsia-200"
                       }`}
                     >
-                      {rol.takim === "vampir" ? "vampir" : "köy"}
+                      {rol.takim === "vampir" ? "vampir" : rol.takim === "koy" ? "köy" : "tarafsız"}
                     </span>
                   </p>
                   <p className="mt-0.5 text-xs leading-relaxed text-white/65">{rol.gorev}</p>

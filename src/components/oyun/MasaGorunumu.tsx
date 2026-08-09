@@ -84,6 +84,13 @@ export function MasaGorunumu({
                     : "border-white/10 bg-white/[0.05]"
             } ${secilebilir ? "cursor-pointer" : "cursor-default"}`}
           >
+            {/* Koltuk numarası: masada kimin kim olduğu karışmasın diye hep görünür. */}
+            <span
+              className="absolute -left-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-white/15 text-[0.55rem] font-bold text-white/70"
+              aria-hidden
+            >
+              {i + 1}
+            </span>
             <span className="text-xl leading-none" aria-hidden>
               {oyuncu.hayatta ? (rolGorunur ? rol.emoji : "🎭") : "💀"}
             </span>

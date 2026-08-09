@@ -9,8 +9,10 @@
  * edilebilir ve sayfa yenilense bile oyun kaldığı yerden devam eder.
  */
 
-export type RolId = "vampir" | "doktor" | "gozcu" | "koylu";
-export type Takim = "vampir" | "koy";
+export type RolId = "vampir" | "doktor" | "gozcu" | "koylu" | "soytari" | "sagkalan";
+export type Takim = "vampir" | "koy" | "tarafsiz";
+/** Oyunu kimin kazandığı: iki takımdan biri ya da kendini astırmayı başaran Soytarı. */
+export type Kazanan = "vampir" | "koy" | "soytari";
 
 export interface RolTanim {
   id: RolId;
@@ -70,6 +72,28 @@ export const ROLLER: Record<RolId, RolTanim> = {
     geceGorevi: false,
     renk: ["#78350f", "#2a1607"],
   },
+  soytari: {
+    id: "soytari",
+    ad: "Soytarı",
+    takim: "tarafsiz",
+    emoji: "🃏",
+    ozet: "Tek amacı kendini astırmak.",
+    gorev:
+      "Kimsenin takımında değilsin. Tek kazanma yolun köyü seni sürgün etmeye ikna etmek: asılırsan oyunu tek başına kazanırsın ve oyun biter. Gece öldürülürsen kaybedersin — şüphe çek ama av olma.",
+    geceGorevi: false,
+    renk: ["#9d174d", "#2a0a1b"],
+  },
+  sagkalan: {
+    id: "sagkalan",
+    ad: "Sağ Kalan",
+    takim: "tarafsiz",
+    emoji: "🎒",
+    ozet: "Tek derdi hayatta kalmak.",
+    gorev:
+      "Kimsenin takımında değilsin. Oyun bittiğinde hâlâ hayattaysan, kazanan kim olursa olsun sen de kazanırsın. Dikkat çekme, kimseye tehdit olma, sağ kal.",
+    geceGorevi: false,
+    renk: ["#155e75", "#07242c"],
+  },
 };
 
 export type Asama =
@@ -107,7 +131,7 @@ export interface Ayarlar {
 }
 
 export const VARSAYILAN_AYARLAR: Ayarlar = {
-  tartismaSuresi: 180,
+  tartismaSuresi: 240,
   gizliOylama: true,
   doktorArtArdaAyniKisi: false,
   olulerinRoluAcik: true,
@@ -159,7 +183,7 @@ export interface OyunDurumu {
   oylar: Record<number, number | null>;
   oylamaSonucu: OylamaSonucu | null;
 
-  kazanan: Takim | null;
+  kazanan: Kazanan | null;
   gunluk: GunlukKaydi[];
 }
 
@@ -171,7 +195,7 @@ export interface OylamaSonucu {
   cekimser: number;
 }
 
-export const OYUN_SURUMU = 2;
+export const OYUN_SURUMU = 3;
 export const MIN_OYUNCU = 4;
 export const MAKS_OYUNCU = 12;
 
@@ -184,15 +208,31 @@ export function varsayilanDagilim(oyuncuSayisi: number): Record<RolId, number> {
   const doktor = 1;
   const gozcu = 1;
   const koylu = Math.max(0, oyuncuSayisi - vampir - doktor - gozcu);
-  return { vampir, doktor, gozcu, koylu };
+  // Tarafsız roller varsayılanda kapalı; masa isterse kurulumdan ekler.
+  return { vampir, doktor, gozcu, koylu, soytari: 0, sagkalan: 0 };
 }
 
 export function dagilimToplami(dagilim: Record<RolId, number>): number {
   return (Object.values(dagilim) as number[]).reduce((a, b) => a + b, 0);
 }
 
+/**
+ * Kriptografik rastgelelik: rol kurasının "hep aynı kişilere vampir çıkıyor"
+ * hissi bırakmaması için Math.random yerine cihazın gerçek entropi kaynağı
+ * kullanılır (crypto yoksa Math.random'a düşer).
+ */
+export function guvenliRastgele(): number {
+  const c = globalThis.crypto;
+  if (c?.getRandomValues) {
+    const dizi = new Uint32Array(1);
+    c.getRandomValues(dizi);
+    return dizi[0] / 4294967296;
+  }
+  return Math.random();
+}
+
 /** Fisher–Yates. Test edilebilirlik için rastgelelik dışarıdan verilebilir. */
-export function karistir<T>(dizi: T[], rastgele: () => number = Math.random): T[] {
+export function karistir<T>(dizi: T[], rastgele: () => number = guvenliRastgele): T[] {
   const sonuc = [...dizi];
   for (let i = sonuc.length - 1; i > 0; i--) {
     const j = Math.floor(rastgele() * (i + 1));
@@ -214,13 +254,28 @@ export function oyuncuBul(oyuncular: Oyuncu[], id: number | null): Oyuncu | unde
   return oyuncular.find((o) => o.id === id);
 }
 
-/** Kazanan takım varsa döner, oyun sürüyorsa null. */
-export function kazananKontrol(oyuncular: Oyuncu[]): Takim | null {
-  const vampirler = hayattaOlanlar(oyuncular).filter((o) => ROLLER[o.rol].takim === "vampir").length;
-  const koyluler = hayattaOlanlar(oyuncular).filter((o) => ROLLER[o.rol].takim === "koy").length;
+/** Kazanan takım varsa döner, oyun sürüyorsa null. Tarafsızlar köy safında sayılır. */
+export function kazananKontrol(oyuncular: Oyuncu[]): Kazanan | null {
+  const hayatta = hayattaOlanlar(oyuncular);
+  const vampirler = hayatta.filter((o) => ROLLER[o.rol].takim === "vampir").length;
+  const digerleri = hayatta.length - vampirler;
   if (vampirler === 0) return "koy";
-  if (vampirler >= koyluler) return "vampir";
+  if (vampirler >= digerleri) return "vampir";
   return null;
+}
+
+/**
+ * Gecenin sonucu kaçınılmaz mı? Doktor hayatta değilse ve vampir saldırısı
+ * sayıyı eşitliğe getirecekse, geceyi oynamak formaliteden ibarettir: oyun
+ * geceye girmeden vampir zaferiyle biter (masada "zaten belliydi" gecesi
+ * yaşanmasın diye).
+ */
+export function koyKurtarilamaz(oyuncular: Oyuncu[]): boolean {
+  const hayatta = hayattaOlanlar(oyuncular);
+  const vampirler = hayatta.filter((o) => ROLLER[o.rol].takim === "vampir").length;
+  const digerleri = hayatta.length - vampirler;
+  const doktorVar = hayatta.some((o) => o.rol === "doktor");
+  return vampirler > 0 && !doktorVar && vampirler >= digerleri - 1;
 }
 
 /** Gece sırasında cihazı elinde tutan oyuncu (hayatta olanlar, koltuk sırasıyla). */
@@ -240,7 +295,7 @@ export function doktorYasakHedef(durum: OyunDurumu, doktorId: number): number | 
  */
 export function vampirKurbani(
   secimler: Record<number, number>,
-  rastgele: () => number = Math.random,
+  rastgele: () => number = guvenliRastgele,
 ): number | null {
   const sayac = new Map<number, number>();
   Object.values(secimler).forEach((hedef) => {
@@ -286,7 +341,7 @@ export function baslangicDurumu(ayarlar: Ayarlar = VARSAYILAN_AYARLAR): OyunDuru
 export function oyunculariOlustur(
   isimler: string[],
   dagilim: Record<RolId, number>,
-  rastgele: () => number = Math.random,
+  rastgele: () => number = guvenliRastgele,
 ): Oyuncu[] {
   const havuz: RolId[] = [];
   (Object.keys(dagilim) as RolId[]).forEach((rol) => {
@@ -339,7 +394,7 @@ function geceSifirla(): Partial<OyunDurumu> {
 /** Şafak sökerken gece seçimlerini uygular, ölen varsa döndürür. */
 function geceyiUygula(
   durum: OyunDurumu,
-  rastgele: () => number = Math.random,
+  rastgele: () => number = guvenliRastgele,
 ): { oyuncular: Oyuncu[]; olen: number | null; hedef: number | null } {
   const hedef = vampirKurbani(durum.vampirSecimleri, rastgele);
   if (hedef === null) return { oyuncular: durum.oyuncular, olen: null, hedef };
@@ -492,12 +547,46 @@ export function oyunReducer(durum: OyunDurumu, aksiyon: OyunAksiyonu): OyunDurum
               o.id === infaz ? { ...o, hayatta: false, olumNedeni: "infaz" as const, olumGunu: durum.gun } : o,
             );
       const infazEdilen = oyuncuBul(oyuncular, infaz);
+
+      // Soytarı asılırsa oyunu tek başına kazanır; kimlik gizleme ayarı bunu
+      // etkilemez, çünkü zafer ilanının kendisi kimliği açıklar.
+      if (infazEdilen?.rol === "soytari") {
+        return {
+          ...durum,
+          oyuncular,
+          kazanan: "soytari",
+          asama: "bitis",
+          gunluk: log(durum, {
+            gun: durum.gun,
+            tip: "gun",
+            metin: `${durum.gun}. gün: Köy oyladı, ${infazEdilen.ad} sürgün edildi… ve Soytarı olduğu ortaya çıktı. Tam da istediği buydu — oyunu tek başına kazandı!`,
+          }),
+        };
+      }
+
       const metin = infazEdilen
         ? `${durum.gun}. gün: Köy oyladı, ${infazEdilen.ad} sürgün edildi.${
             durum.ayarlar.olulerinRoluAcik ? ` Kimliği: ${ROLLER[infazEdilen.rol].ad}.` : ""
           }`
         : `${durum.gun}. gün: Oylar bölündü, kimse sürgün edilmedi.`;
-      const kazanan = kazananKontrol(oyuncular);
+
+      let kazanan = kazananKontrol(oyuncular);
+      let gunluk = log(durum, { gun: durum.gun, tip: "gun", metin });
+      // Geceye girmeden önce sonuç zaten belliyse (doktor yok, saldırı eşitliği
+      // kaçınılmaz kılacak) formalite gecesi oynatma: oyun burada biter.
+      if (!kazanan && koyKurtarilamaz(oyuncular)) {
+        kazanan = "vampir";
+        gunluk = [
+          ...gunluk,
+          {
+            gun: durum.gun,
+            tip: "sistem",
+            metin:
+              "Doktor kalmadı ve gece saldırısı sayıyı eşitliğe getirecekti; köy teslim oldu, gece oynanmadan vampirler kazandı.",
+          },
+        ];
+      }
+
       return {
         ...durum,
         oyuncular,
@@ -508,7 +597,7 @@ export function oyunReducer(durum: OyunDurumu, aksiyon: OyunAksiyonu): OyunDurum
         oylar: {},
         oySira: 0,
         oylamaSonucu: null,
-        gunluk: log(durum, { gun: durum.gun, tip: "gun", metin }),
+        gunluk,
       };
     }
 

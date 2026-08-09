@@ -13,7 +13,7 @@ import {
 } from "@/lib/oyun/vampirKoylu";
 import { Baslik, Buton, Panel } from "./ui";
 
-const ROL_SIRASI: RolId[] = ["vampir", "doktor", "gozcu", "koylu"];
+const ROL_SIRASI: RolId[] = ["vampir", "doktor", "gozcu", "koylu", "soytari", "sagkalan"];
 const VARSAYILAN_OYUNCU = 6;
 
 interface KurulumEkraniProps {

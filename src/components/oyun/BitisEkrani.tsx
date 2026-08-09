@@ -10,18 +10,37 @@ interface BitisEkraniProps {
 }
 
 export function BitisEkrani({ durum, onYenidenBasla }: BitisEkraniProps) {
-  const vampirKazandi = durum.kazanan === "vampir";
-  const kazananlar = durum.oyuncular.filter((o) => ROLLER[o.rol].takim === durum.kazanan);
+  const kazanan = durum.kazanan;
+  // Soytarı yalnızca asılarak kazanır; kazanan Soytarı = infazla ölen soytarı.
+  const soytariOyuncu = durum.oyuncular.find(
+    (o) => o.rol === "soytari" && o.olumNedeni === "infaz",
+  );
+  const sagKalanlar = durum.oyuncular.filter((o) => o.rol === "sagkalan" && o.hayatta);
+
+  const kazananlar =
+    kazanan === "soytari"
+      ? soytariOyuncu
+        ? [soytariOyuncu]
+        : []
+      : durum.oyuncular.filter((o) => ROLLER[o.rol].takim === kazanan);
 
   return (
     <div className="space-y-5">
       <Baslik
         ustBaslik={`${durum.gun}. gün · oyun bitti`}
-        baslik={vampirKazandi ? "🧛 Vampirler kazandı" : "🌾 Köy kazandı"}
+        baslik={
+          kazanan === "soytari"
+            ? "🃏 Soytarı kazandı"
+            : kazanan === "vampir"
+              ? "🧛 Vampirler kazandı"
+              : "🌾 Köy kazandı"
+        }
         aciklama={
-          vampirKazandi
-            ? "Vampir sayısı köylülere eşitlendi; köy artık kendini savunamaz."
-            : "Son vampir de ortaya çıkarıldı. Köy huzura kavuştu."
+          kazanan === "soytari"
+            ? `Köy, ${soytariOyuncu?.ad ?? "Soytarı"}'yı sürgün etti — tam da istediği buydu.`
+            : kazanan === "vampir"
+              ? "Köyün vampirleri durduracak gücü kalmadı."
+              : "Son vampir de ortaya çıkarıldı. Köy huzura kavuştu."
         }
       />
 
@@ -31,7 +50,7 @@ export function BitisEkrani({ durum, onYenidenBasla }: BitisEkraniProps) {
         merkez={
           <div className="space-y-1">
             <p className="text-5xl" aria-hidden>
-              {vampirKazandi ? "🩸" : "🏆"}
+              {kazanan === "soytari" ? "🃏" : kazanan === "vampir" ? "🩸" : "🏆"}
             </p>
             <p className="text-xs font-bold uppercase tracking-widest text-white/60">
               tüm roller açık
@@ -41,9 +60,7 @@ export function BitisEkrani({ durum, onYenidenBasla }: BitisEkraniProps) {
       />
 
       <Panel>
-        <p className="mb-2 text-xs font-bold uppercase tracking-widest text-white/50">
-          Kazanan taraf
-        </p>
+        <p className="mb-2 text-xs font-bold uppercase tracking-widest text-white/50">Kazananlar</p>
         <ul className="flex flex-wrap gap-2">
           {kazananlar.map((o) => (
             <li
@@ -51,6 +68,15 @@ export function BitisEkrani({ durum, onYenidenBasla }: BitisEkraniProps) {
               className="rounded-full bg-amber-300/15 px-3 py-1 text-sm font-semibold text-amber-200"
             >
               {ROLLER[o.rol].emoji} {o.ad}
+            </li>
+          ))}
+          {/* Sağ Kalan, oyunun sonunu hayatta gördüyse kazanan kim olursa olsun kazanır. */}
+          {sagKalanlar.map((o) => (
+            <li
+              key={o.id}
+              className="rounded-full bg-cyan-300/15 px-3 py-1 text-sm font-semibold text-cyan-200"
+            >
+              🎒 {o.ad} · sağ kaldı
             </li>
           ))}
         </ul>

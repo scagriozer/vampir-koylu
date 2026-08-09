@@ -55,10 +55,14 @@ export function DagitimEkrani({ oyuncu, sira, toplam, acik, onAc, onKapat }: Dag
               <span className="text-2xl font-black text-white">{rol.ad}</span>
               <span
                 className={`rounded-full px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wide ${
-                  rol.takim === "vampir" ? "bg-red-950/70 text-red-200" : "bg-emerald-950/70 text-emerald-200"
+                  rol.takim === "vampir"
+                    ? "bg-red-950/70 text-red-200"
+                    : rol.takim === "koy"
+                      ? "bg-emerald-950/70 text-emerald-200"
+                      : "bg-fuchsia-950/70 text-fuchsia-200"
                 }`}
               >
-                {rol.takim === "vampir" ? "Vampir takımı" : "Köy takımı"}
+                {rol.takim === "vampir" ? "Vampir takımı" : rol.takim === "koy" ? "Köy takımı" : "Tarafsız"}
               </span>
             </div>
           </div>

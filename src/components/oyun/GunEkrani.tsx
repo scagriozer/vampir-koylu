@@ -157,8 +157,13 @@ function OylamaBolumu({ durum, onOyVer }: GunEkraniProps) {
 
   if (!oyVeren) return null;
 
+  // Masada kimin sırası olduğu karışmasın: koltuk numarası + önceki oy veren
+  // her iki ekranda da gösteriliyor, oy verenin koltuğu 🗳️ ile işaretli.
+  const koltukNo = durum.oyuncular.findIndex((o) => o.id === oyVeren.id) + 1;
+  const onceki = durum.oySira > 0 ? hayatta[durum.oySira - 1] : null;
+
   // Açık oylamada o ana kadarki oylar masada görünür.
-  const acikSayim: Record<number, string> = {};
+  const rozetler: Record<number, string> = {};
   if (!gizli) {
     const sayac = new Map<number, number>();
     Object.values(durum.oylar).forEach((hedef) => {
@@ -166,21 +171,27 @@ function OylamaBolumu({ durum, onOyVer }: GunEkraniProps) {
       sayac.set(hedef, (sayac.get(hedef) ?? 0) + 1);
     });
     sayac.forEach((adet, id) => {
-      acikSayim[id] = `${adet} oy`;
+      rozetler[id] = `${adet} oy`;
     });
   }
+  rozetler[oyVeren.id] = rozetler[oyVeren.id] ? `🗳️ ${rozetler[oyVeren.id]}` : "🗳️ oy sırası";
 
   if (!devralindi) {
     return (
       <div className="space-y-6">
         <Baslik
           ustBaslik={`Gizli oylama · ${durum.oySira + 1}/${hayatta.length}`}
-          baslik={`Cihaz ${oyVeren.ad}'de`}
-          aciklama="Oyun gizli. Cihazı al, kimsenin görmediğinden emin ol ve oyunu ver."
+          baslik={`${koltukNo}. koltuk · ${oyVeren.ad}`}
+          aciklama={
+            <>
+              {onceki ? `${onceki.ad} oyunu verdi; sıra sende.` : "İlk oy sende."} Cihazı elinde
+              tutan <strong className="text-white">{oyVeren.ad}</strong> değilse, önce ona uzatın.
+            </>
+          }
         />
         <div className="flex justify-center py-8 text-7xl">🗳️</div>
         <Buton tamGenislik onClick={() => setDevralindi(true)}>
-          Oyumu vereceğim
+          Ben {oyVeren.ad} — oy vereceğim
         </Buton>
       </div>
     );
@@ -191,7 +202,7 @@ function OylamaBolumu({ durum, onOyVer }: GunEkraniProps) {
       <Baslik
         ustBaslik={`${gizli ? "Gizli" : "Açık"} oylama · ${durum.oySira + 1}/${hayatta.length}`}
         baslik={`${oyVeren.ad} kime oy veriyor?`}
-        aciklama="Sürgün edilmesini istediğin kişiye dokun. Kararsızsan çekimser kalabilirsin."
+        aciklama={`${koltukNo}. koltuktasın. Sürgün edilmesini istediğin kişiye dokun; kararsızsan çekimser kal.`}
       />
 
       <MasaGorunumu
@@ -200,7 +211,7 @@ function OylamaBolumu({ durum, onOyVer }: GunEkraniProps) {
         secilebilirIdler={hayatta.filter((o) => o.id !== oyVeren.id).map((o) => o.id)}
         seciliId={secim}
         onSec={setSecim}
-        rozetler={acikSayim}
+        rozetler={rozetler}
         merkez={
           <div className="space-y-1">
             <p className="text-4xl" aria-hidden>
@@ -291,8 +302,9 @@ function OylamaSonucBolumu({ durum, onSonucuOnayla }: GunEkraniProps) {
         </ul>
       </Panel>
 
+      {/* Sürgün oyunu bitirebilir (Soytarı, teslim kuralı); "geceye geç" deme. */}
       <Buton tamGenislik onClick={onSonucuOnayla}>
-        🌙 Geceye geç
+        ➡️ Devam et
       </Buton>
     </div>
   );
