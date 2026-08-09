@@ -37,19 +37,32 @@ export function sesleriEtkinlestir() {
 //   essela.mp3  → vampir birini öldürdüğünde
 //   sasirma.mp3 → vampir denedi ama doktor kurtardığında (kimse ölmedi)
 export type KlipAdi = "essela" | "sasirma";
-const KLIP_YOLLARI: Record<KlipAdi, string> = {
-  essela: "sesler/essela.mp3",
-  sasirma: "sesler/sasirma.mp3",
+
+interface KlipAyar {
+  yol: string;
+  /** Dosyanın bu saniyesinden çalmaya başla (baştaki sessizliği atla) */
+  basla: number;
+  /** Bu dosya saniyesine kadar tam ses; sonrasında kısılma başlar */
+  kisilmaBasi: number;
+  /** Bu dosya saniyesinde tamamen sus */
+  bitis: number;
+}
+
+// Değerler dosyaların gerçek dalga analizinden (100ms RMS profili) çıkarıldı;
+// dosyalar değişirse yeniden ölçülmeli.
+const KLIPLER: Record<KlipAdi, KlipAyar> = {
+  // İlk ~0,9 sn sessiz, ses dosya sonuna dek gür: kısılma tam dosya sonunda biter.
+  essela: { yol: "sesler/essela.mp3", basla: 0.85, kisilmaBasi: 3.6, bitis: 5.0 },
+  // Efekt hemen başlar, ~3,1 sn'de doğal biter; kısa güvenlik kısılması yeter.
+  sasirma: { yol: "sesler/sasirma.mp3", basla: 0, kisilmaBasi: 3.1, bitis: 3.5 },
 };
-const KLIP_SURE = 4;
-const KLIP_FADE = 1.5;
 const klipTamponlari: Partial<Record<KlipAdi, AudioBuffer | null>> = {};
 
 async function klipYukle(ad: KlipAdi): Promise<AudioBuffer | null> {
   if (ad in klipTamponlari) return klipTamponlari[ad] ?? null;
   klipTamponlari[ad] = null;
   try {
-    const yanit = await fetch(KLIP_YOLLARI[ad]);
+    const yanit = await fetch(KLIPLER[ad].yol);
     if (yanit.ok && baglam) {
       klipTamponlari[ad] = await baglam.decodeAudioData(await yanit.arrayBuffer());
     }
@@ -60,10 +73,10 @@ async function klipYukle(ad: KlipAdi): Promise<AudioBuffer | null> {
 }
 
 function tumKlipleriYukle() {
-  (Object.keys(KLIP_YOLLARI) as KlipAdi[]).forEach((ad) => void klipYukle(ad));
+  (Object.keys(KLIPLER) as KlipAdi[]).forEach((ad) => void klipYukle(ad));
 }
 
-/** Özel klip varsa onu (ilk 4 sn + fade-out), yoksa verilen sentez sesi çalar. */
+/** Özel klip varsa onu (kendi kesim/kısılma ayarıyla), yoksa verilen sentez sesi çalar. */
 export function klipCal(ad: KlipAdi, yedek: SesTipi) {
   if (!etkin) return;
   sesleriEtkinlestir();
@@ -74,17 +87,28 @@ export function klipCal(ad: KlipAdi, yedek: SesTipi) {
       sesCal(yedek);
       return;
     }
+    const ayar = KLIPLER[ad];
+    // Dosya beklenenden kısaysa (kullanıcı farklı bir kayıt yüklemiş olabilir)
+    // kesim noktalarını dosya sonuna sıkıştır.
+    const bitis = Math.min(ayar.bitis, tampon.duration);
+    const kisilmaBasi = Math.min(ayar.kisilmaBasi, Math.max(ayar.basla, bitis - 0.3));
+    const tamSure = kisilmaBasi - ayar.basla;
+    const toplamSure = bitis - ayar.basla;
+    if (toplamSure <= 0) {
+      sesCal(yedek);
+      return;
+    }
     const kaynak = baglam.createBufferSource();
     kaynak.buffer = tampon;
     const kazanc = baglam.createGain();
     const t = baglam.currentTime;
     kazanc.gain.setValueAtTime(0.9, t);
-    kazanc.gain.setValueAtTime(0.9, t + KLIP_SURE);
-    kazanc.gain.linearRampToValueAtTime(0.0001, t + KLIP_SURE + KLIP_FADE);
+    kazanc.gain.setValueAtTime(0.9, t + tamSure);
+    kazanc.gain.linearRampToValueAtTime(0.0001, t + toplamSure);
     kaynak.connect(kazanc);
     kazanc.connect(baglam.destination);
-    kaynak.start(t);
-    kaynak.stop(t + KLIP_SURE + KLIP_FADE + 0.1);
+    kaynak.start(t, ayar.basla);
+    kaynak.stop(t + toplamSure + 0.05);
   });
 }
 
