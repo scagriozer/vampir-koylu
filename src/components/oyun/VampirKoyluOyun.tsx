@@ -63,14 +63,45 @@ export function VampirKoyluOyun() {
     tepeRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [adimAnahtari]);
 
+  const sonYazilanRef = useRef<string | null>(null);
   useEffect(() => {
     try {
-      if (durum.asama === "kurulum") window.localStorage.removeItem(DEPO_ANAHTARI);
-      else window.localStorage.setItem(DEPO_ANAHTARI, JSON.stringify(durum));
+      if (durum.asama === "kurulum") {
+        window.localStorage.removeItem(DEPO_ANAHTARI);
+        sonYazilanRef.current = null;
+      } else {
+        const ham = JSON.stringify(durum);
+        window.localStorage.setItem(DEPO_ANAHTARI, ham);
+        sonYazilanRef.current = ham;
+      }
     } catch {
       // Depolama kapalıysa oyun yine de oynanabilir.
     }
   }, [durum]);
+
+  // Ekran kilidi/sekme değişimi sonrası: tarayıcı sayfanın eski bir anlık
+  // görüntüsünü geri getirmiş ya da oyun başka bir sekmede ilerlemiş olabilir.
+  // Görünür olunca kayıtlı durum ekrandakinden farklıysa kayıtlı olan benimsenir;
+  // tek doğruluk kaynağı localStorage'dır.
+  useEffect(() => {
+    const uyumla = () => {
+      if (document.visibilityState !== "visible") return;
+      try {
+        const ham = window.localStorage.getItem(DEPO_ANAHTARI);
+        if (!ham || ham === sonYazilanRef.current) return;
+        const veri: unknown = JSON.parse(ham);
+        if (gecerliDurumMu(veri)) dispatch({ tip: "durumuYukle", durum: veri });
+      } catch {
+        // Bozuk kayıt: ekrandaki durumla devam et.
+      }
+    };
+    document.addEventListener("visibilitychange", uyumla);
+    window.addEventListener("pageshow", uyumla);
+    return () => {
+      document.removeEventListener("visibilitychange", uyumla);
+      window.removeEventListener("pageshow", uyumla);
+    };
+  }, []);
 
   function yenidenBasla() {
     if (durum.asama !== "bitis" && durum.asama !== "kurulum") {

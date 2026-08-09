@@ -89,15 +89,33 @@ function sureBicimle(saniye: number) {
 
 function TartismaBolumu({ durum, onTartismayiBitir }: GunEkraniProps) {
   const [kalan, setKalan] = useState(durum.ayarlar.tartismaSuresi);
-  const [calisiyor, setCalisiyor] = useState(true);
+  // Süre duvar saatine göre işler (bitis: hedef zaman damgası, null: duraklatıldı).
+  // Böylece ekran kilitliyken setInterval dursa bile, kilit açılınca sayaç
+  // gerçekte geçen süreyi gösterir.
+  const [bitis, setBitis] = useState<number | null>(() => Date.now() + durum.ayarlar.tartismaSuresi * 1000);
+  const calisiyor = bitis !== null;
 
   useEffect(() => {
-    if (!calisiyor) return;
-    const id = setInterval(() => {
-      setKalan((onceki) => (onceki <= 1 ? 0 : onceki - 1));
-    }, 1000);
-    return () => clearInterval(id);
-  }, [calisiyor]);
+    if (bitis === null) return;
+    const guncelle = () => setKalan(Math.max(0, Math.ceil((bitis - Date.now()) / 1000)));
+    const id = setInterval(guncelle, 1000);
+    // Kilitten/arka plandan dönüşte tik beklemeden anında düzelt.
+    document.addEventListener("visibilitychange", guncelle);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", guncelle);
+    };
+  }, [bitis]);
+
+  function duraklatDevamEt() {
+    if (calisiyor) setBitis(null);
+    else if (kalan > 0) setBitis(Date.now() + kalan * 1000);
+  }
+
+  function otuzSaniyeEkle() {
+    setKalan((v) => v + 30);
+    setBitis((b) => (b === null ? null : b + 30_000));
+  }
 
   const sureDoldu = kalan === 0;
   const hayatta = hayattaOlanlar(durum.oyuncular);
@@ -132,10 +150,10 @@ function TartismaBolumu({ durum, onTartismayiBitir }: GunEkraniProps) {
       />
 
       <div className="flex flex-wrap justify-center gap-2">
-        <Buton ton="ikincil" onClick={() => setCalisiyor((v) => !v)} disabled={sureDoldu}>
+        <Buton ton="ikincil" onClick={duraklatDevamEt} disabled={sureDoldu}>
           {calisiyor ? "⏸ Duraklat" : "▶️ Devam"}
         </Buton>
-        <Buton ton="ikincil" onClick={() => setKalan((v) => v + 30)}>
+        <Buton ton="ikincil" onClick={otuzSaniyeEkle}>
           +30 sn
         </Buton>
       </div>

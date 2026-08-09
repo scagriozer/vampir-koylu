@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 type ButonTonu = "birincil" | "ikincil" | "tehlike" | "hayalet";
@@ -25,11 +26,25 @@ export function Buton({
   tamGenislik = false,
   className = "",
   children,
+  onClick,
   ...props
 }: ButonProps) {
+  // Aşama atlama koruması: ekranlar arası butonlar çoğu zaman aynı konumda
+  // olduğundan, çift/hızlı dokunuş bir önceki ekrana basılan parmağın ikinci
+  // temasını yeni ekranın butonuna iletebiliyor (ör. "Sıra bende" → "Kapat").
+  // Buton ekrana geldikten sonraki ilk anlarda gelen dokunuşlar yok sayılır.
+  const hazirZamani = useRef(0);
+  useEffect(() => {
+    hazirZamani.current = Date.now() + 350;
+  }, []);
+
   return (
     <button
       {...props}
+      onClick={(e) => {
+        if (Date.now() < hazirZamani.current) return;
+        onClick?.(e);
+      }}
       // min-h-11: iOS'ta önerilen 44pt dokunma hedefi.
       // touch-manipulation: hızlı arka arkaya dokunuşta çift dokunma yakınlaştırmasını kapatır.
       className={`inline-flex min-h-11 min-w-11 touch-manipulation items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold uppercase tracking-wide transition-colors disabled:cursor-not-allowed ${
