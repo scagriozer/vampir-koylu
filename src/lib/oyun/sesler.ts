@@ -22,46 +22,56 @@ export function sesleriEtkinlestir() {
   try {
     baglam ??= new AudioContext();
     if (baglam.state === "suspended") void baglam.resume();
-    // Özel klibi (varsa) şafak anında beklemeden çalabilmek için önden yükle.
-    void klipYukle();
+    // Özel klipleri (varsa) şafak anında beklemeden çalabilmek için önden yükle.
+    tumKlipleriYukle();
   } catch {
     // Ses desteklenmiyorsa oyun sessiz devam eder.
   }
 }
 
-// — Özel "kurtuluş" klibi —
-// Depoya public/sesler/essela.mp3 eklenirse "kimse ölmedi" şafağında ilk
-// KLIP_SURE saniyesi çalar ve KLIP_FADE saniyede kısılarak susar. Dosya yoksa
-// sentezlenmiş şafak sesine düşülür. (Göreli yol: sayfa alt yolda yayınlansa da
-// — GitHub Pages — doğru adrese çözünür.)
-const KLIP_URL = "sesler/essela.mp3";
+// — Özel şafak klipleri —
+// Depoya eklenirse şafak duyurularında sentez ses yerine bu klipler çalar;
+// her klibin ilk KLIP_SURE saniyesi tam ses çalıp KLIP_FADE saniyede kısılır.
+// Dosya yoksa `yedek` sentez sese düşülür. (Göreli yol: sayfa alt yolda
+// yayınlansa da — GitHub Pages — doğru adrese çözünür.)
+//   essela.mp3  → vampir birini öldürdüğünde
+//   sasirma.mp3 → vampir denedi ama doktor kurtardığında (kimse ölmedi)
+export type KlipAdi = "essela" | "sasirma";
+const KLIP_YOLLARI: Record<KlipAdi, string> = {
+  essela: "sesler/essela.mp3",
+  sasirma: "sesler/sasirma.mp3",
+};
 const KLIP_SURE = 4;
 const KLIP_FADE = 1.5;
-let klipTampon: AudioBuffer | null | undefined;
+const klipTamponlari: Partial<Record<KlipAdi, AudioBuffer | null>> = {};
 
-async function klipYukle(): Promise<AudioBuffer | null> {
-  if (klipTampon !== undefined) return klipTampon;
-  klipTampon = null;
+async function klipYukle(ad: KlipAdi): Promise<AudioBuffer | null> {
+  if (ad in klipTamponlari) return klipTamponlari[ad] ?? null;
+  klipTamponlari[ad] = null;
   try {
-    const yanit = await fetch(KLIP_URL);
+    const yanit = await fetch(KLIP_YOLLARI[ad]);
     if (yanit.ok && baglam) {
-      klipTampon = await baglam.decodeAudioData(await yanit.arrayBuffer());
+      klipTamponlari[ad] = await baglam.decodeAudioData(await yanit.arrayBuffer());
     }
   } catch {
     // Klip yok/çözülemedi: sentez sese düşülecek.
   }
-  return klipTampon;
+  return klipTamponlari[ad] ?? null;
 }
 
-/** "Kimse ölmedi" şafağı: özel klip varsa onu, yoksa sentez şafak sesini çalar. */
-export function kurtulusCal() {
+function tumKlipleriYukle() {
+  (Object.keys(KLIP_YOLLARI) as KlipAdi[]).forEach((ad) => void klipYukle(ad));
+}
+
+/** Özel klip varsa onu (ilk 4 sn + fade-out), yoksa verilen sentez sesi çalar. */
+export function klipCal(ad: KlipAdi, yedek: SesTipi) {
   if (!etkin) return;
   sesleriEtkinlestir();
   if (!baglam) return;
-  void klipYukle().then((tampon) => {
+  void klipYukle(ad).then((tampon) => {
     if (!baglam) return;
     if (!tampon) {
-      sesCal("safak");
+      sesCal(yedek);
       return;
     }
     const kaynak = baglam.createBufferSource();

@@ -1,14 +1,16 @@
 # Özel ses klipleri
 
-## essela.mp3
+Bu klasöre aşağıdaki adlarla mp3 eklerseniz şafak duyurularında sentez ses yerine
+onlar çalar. Her klibin **ilk 4 saniyesi** tam ses çalar, ardından **1,5 saniyede**
+kısılarak susar — dosyayı kesmenize gerek yok, tam halini yükleyin.
 
-Bu klasöre `essela.mp3` adında bir ses dosyası eklerseniz, oyunda **kimse ölmeden
-biten şafaklarda** (doktor kurtardığında) bu klip çalar: ilk 4 saniyesi tam ses,
-ardından 1,5 saniyede kısılarak susar. Dosya yoksa uygulama sentezlenmiş yumuşak
-şafak sesini kullanır.
+| Dosya adı | Ne zaman çalar | Dosya yoksa |
+| --- | --- | --- |
+| `essela.mp3` | Vampir birini öldürdüğünde (ölümlü şafak) | boğuk vuruş sesi |
+| `sasirma.mp3` | Vampir denedi ama doktor kurtardığında (kimse ölmedi) | yumuşak çan |
 
-Dosyayı eklemek için: GitHub'da bu klasöre gelin → **Add file → Upload files** →
-`essela.mp3` dosyasını sürükleyin → commit. Site 1-2 dakika içinde otomatik güncellenir.
+Eklemek için: GitHub'da bu klasör → **Add file → Upload files** → mp3'leri sürükle →
+commit. Site 1-2 dakika içinde otomatik güncellenir.
 
 > Not: Telifli bir kayıt (ör. bir şarkıdan kesit) eklemeden önce kullanım hakkınız
 > olduğundan emin olun; sorumluluk depo sahibine aittir.

@@ -50,8 +50,9 @@ zaferiyle biter.
   kalır; köy doğru kişiyi asıp asmadığını bilemez, vampirlerin blöf alanı genişler. Kimlikler her
   hâlükârda oyun sonunda açılır.
 - **Ses ve titreşim** (varsayılan açık) — Gece/şafak/zafer efektleri, sayaç uyarıları; titreşim
-  Android'de çalışır. `public/sesler/essela.mp3` eklenirse "kimse ölmedi" şafağında o klip çalar
-  (ilk 4 sn + fade-out) — ayrıntı: `public/sesler/README.md`.
+  Android'de çalışır. `public/sesler/` klasörüne özel klipler eklenebilir: `essela.mp3` ölümlü şafakta,
+  `sasirma.mp3` doktorun kurtardığı şafakta çalar (ilk 4 sn + fade-out) — ayrıntı:
+  `public/sesler/README.md`.
 
 ## Geliştirme
 
