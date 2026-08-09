@@ -128,6 +128,8 @@ export interface Ayarlar {
    * kapalıyken vampirlerin blöf alanı genişler.
    */
   olulerinRoluAcik: boolean;
+  /** Faz geçişlerinde ses efektleri ve (Android'de) titreşim */
+  sesEfektleri: boolean;
 }
 
 export const VARSAYILAN_AYARLAR: Ayarlar = {
@@ -135,6 +137,7 @@ export const VARSAYILAN_AYARLAR: Ayarlar = {
   gizliOylama: true,
   doktorArtArdaAyniKisi: false,
   olulerinRoluAcik: true,
+  sesEfektleri: true,
 };
 
 export interface GunlukKaydi {

@@ -216,6 +216,12 @@ export function KurulumEkrani({ onBasla }: KurulumEkraniProps) {
             onDegis={(v) => setAyarlar((a) => ({ ...a, gizliOylama: v }))}
           />
           <SecenekSatiri
+            baslik="Ses ve titreşim"
+            aciklama="Gece, şafak, zafer ve süre uyarıları; titreşim Android'de çalışır"
+            acik={ayarlar.sesEfektleri}
+            onDegis={(v) => setAyarlar((a) => ({ ...a, sesEfektleri: v }))}
+          />
+          <SecenekSatiri
             baslik="Ölenlerin kimliği açıklansın"
             aciklama="Kapalıyken sürgün edilen ya da öldürülen kişinin rolü gizli kalır — vampirler için daha kolay, köy için daha zor"
             acik={ayarlar.olulerinRoluAcik}

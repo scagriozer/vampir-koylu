@@ -7,6 +7,7 @@ import {
   oyuncuBul,
   type OyunDurumu,
 } from "@/lib/oyun/vampirKoylu";
+import { sesCal, titret } from "@/lib/oyun/sesler";
 import { MasaGorunumu } from "./MasaGorunumu";
 import { Baslik, Buton, Panel } from "./ui";
 
@@ -97,7 +98,20 @@ function TartismaBolumu({ durum, onTartismayiBitir }: GunEkraniProps) {
 
   useEffect(() => {
     if (bitis === null) return;
-    const guncelle = () => setKalan(Math.max(0, Math.ceil((bitis - Date.now()) / 1000)));
+    let onceki = Math.max(0, Math.ceil((bitis - Date.now()) / 1000));
+    const guncelle = () => {
+      const yeni = Math.max(0, Math.ceil((bitis - Date.now()) / 1000));
+      if (yeni !== onceki) {
+        if (yeni === 0) {
+          sesCal("sureDoldu");
+          titret([120, 80, 120, 80, 250]);
+        } else if (yeni <= 10) {
+          sesCal("tik");
+        }
+        onceki = yeni;
+      }
+      setKalan(yeni);
+    };
     const id = setInterval(guncelle, 1000);
     // Kilitten/arka plandan dönüşte tik beklemeden anında düzelt.
     document.addEventListener("visibilitychange", guncelle);

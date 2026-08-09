@@ -4,6 +4,7 @@ import { useEffect, useReducer, useRef, useState } from "react";
 // Bu bileşen yalnızca istemcide (ssr: false) yüklenir; bu yüzden ilk render'da
 // localStorage'ı doğrudan okumak güvenlidir, hydration uyuşmazlığı oluşmaz.
 import {
+  VARSAYILAN_AYARLAR,
   baslangicDurumu,
   gecerliDurumMu,
   hayattaOlanlar,
@@ -11,6 +12,7 @@ import {
   type Ayarlar,
   type RolId,
 } from "@/lib/oyun/vampirKoylu";
+import { sesAyarla, sesCal, titret } from "@/lib/oyun/sesler";
 import { BitisEkrani } from "./BitisEkrani";
 import { DagitimEkrani } from "./DagitimEkrani";
 import { GeceEkrani } from "./GeceEkrani";
@@ -38,7 +40,10 @@ function kayitliDurumuOku() {
     const ham = window.localStorage.getItem(DEPO_ANAHTARI);
     if (ham) {
       const veri: unknown = JSON.parse(ham);
-      if (gecerliDurumMu(veri) && veri.asama !== "kurulum") return veri;
+      if (gecerliDurumMu(veri) && veri.asama !== "kurulum") {
+        // Sonradan eklenen ayarlar eski kayıtlarda olmayabilir; varsayılanla doldur.
+        return { ...veri, ayarlar: { ...VARSAYILAN_AYARLAR, ...veri.ayarlar } };
+      }
     }
   } catch {
     // Bozuk/erişilemez depo: sessizce yeni oyunla devam et.
@@ -52,8 +57,8 @@ export function VampirKoyluOyun() {
   const tepeRef = useRef<HTMLDivElement>(null);
   const ilkRenderRef = useRef(true);
 
-  // Her yeni adımda ekranın başına dön: cihaz elden ele geçerken sıradaki oyuncu
-  // sayfanın ortasında değil, adımın başında karşılansın.
+  // Her yeni adımda ekranın başına dön ve kısa bir titreşimle "sıra değişti"
+  // sinyali ver: cihaz elden ele geçerken sıradaki oyuncu adımın başında karşılansın.
   const adimAnahtari = `${durum.asama}-${durum.gun}-${durum.geceSira}-${durum.oySira}-${durum.dagitimSira}-${durum.dagitimAcik}`;
   useEffect(() => {
     if (ilkRenderRef.current) {
@@ -61,7 +66,35 @@ export function VampirKoyluOyun() {
       return;
     }
     tepeRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    titret(25);
   }, [adimAnahtari]);
+
+  // Ses ayarını modüle aktar ve faz geçişlerinde efekt çal.
+  useEffect(() => {
+    sesAyarla(durum.ayarlar.sesEfektleri);
+  }, [durum.ayarlar.sesEfektleri]);
+
+  const oncekiFazRef = useRef({ asama: durum.asama, safakAcildi: durum.safakAcildi });
+  useEffect(() => {
+    const onceki = oncekiFazRef.current;
+    oncekiFazRef.current = { asama: durum.asama, safakAcildi: durum.safakAcildi };
+
+    if (durum.asama === "gece" && onceki.asama !== "gece") {
+      sesCal("gece");
+      titret([40, 80, 40]);
+    }
+    if (
+      durum.asama === "safak" &&
+      durum.safakAcildi &&
+      !(onceki.asama === "safak" && onceki.safakAcildi)
+    ) {
+      sesCal(durum.safakOlen !== null ? "olum" : "safak");
+    }
+    if (durum.asama === "bitis" && onceki.asama !== "bitis") {
+      sesCal("zafer");
+      titret([60, 60, 60, 60, 200]);
+    }
+  }, [durum.asama, durum.safakAcildi, durum.safakOlen]);
 
   const sonYazilanRef = useRef<string | null>(null);
   useEffect(() => {

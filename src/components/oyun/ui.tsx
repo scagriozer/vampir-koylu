@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { sesleriEtkinlestir } from "@/lib/oyun/sesler";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 type ButonTonu = "birincil" | "ikincil" | "tehlike" | "hayalet";
@@ -42,6 +43,9 @@ export function Buton({
     <button
       {...props}
       onClick={(e) => {
+        // iOS ses bağlamı yalnızca dokunuş içinde açılabilir; koruma dokunuşu
+        // yutsa bile bağlamı uyandırmak serbest.
+        sesleriEtkinlestir();
         if (Date.now() < hazirZamani.current) return;
         onClick?.(e);
       }}
