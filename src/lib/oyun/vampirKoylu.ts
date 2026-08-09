@@ -136,7 +136,7 @@ export const VARSAYILAN_AYARLAR: Ayarlar = {
   tartismaSuresi: 240,
   gizliOylama: true,
   doktorArtArdaAyniKisi: false,
-  olulerinRoluAcik: true,
+  olulerinRoluAcik: false,
   sesEfektleri: true,
 };
 

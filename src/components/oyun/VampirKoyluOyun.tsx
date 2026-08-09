@@ -12,7 +12,7 @@ import {
   type Ayarlar,
   type RolId,
 } from "@/lib/oyun/vampirKoylu";
-import { sesAyarla, sesCal, titret } from "@/lib/oyun/sesler";
+import { kurtulusCal, sesAyarla, sesCal, titret } from "@/lib/oyun/sesler";
 import { BitisEkrani } from "./BitisEkrani";
 import { DagitimEkrani } from "./DagitimEkrani";
 import { GeceEkrani } from "./GeceEkrani";
@@ -88,7 +88,9 @@ export function VampirKoyluOyun() {
       durum.safakAcildi &&
       !(onceki.asama === "safak" && onceki.safakAcildi)
     ) {
-      sesCal(durum.safakOlen !== null ? "olum" : "safak");
+      // Kimse ölmediyse (doktor kurtardıysa) eğlenceli kurtuluş klibi; ölüm varsa tok vuruş.
+      if (durum.safakOlen !== null) sesCal("olum");
+      else kurtulusCal();
     }
     if (durum.asama === "bitis" && onceki.asama !== "bitis") {
       sesCal("zafer");

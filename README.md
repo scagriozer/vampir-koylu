@@ -45,9 +45,13 @@ zaferiyle biter.
 - **Gizli oylama** — Açıkken cihaz elden ele dolaşır ve kimse kimin oyunu görmez; kapalıyken
   oylar sırayla açıkça girilir ve masada çalışan sayım görünür.
 - **Doktor üst üste aynı kişiyi koruyabilir** — Kapalıyken önceki gece korunan kişi tekrar seçilemez.
-- **Ölenlerin kimliği açıklansın** — Açıkken ölen ya da sürgün edilen kişinin rolü masaya duyurulur
-  (köy bilgi kazanır, yeni başlayanlar için kolay). Kapalıyken kimlik gizli kalır; köy doğru kişiyi
-  asıp asmadığını bilemez, vampirlerin blöf alanı genişler. Kimlikler her hâlükârda oyun sonunda açılır.
+- **Ölenlerin kimliği açıklansın** (varsayılan kapalı) — Açıkken ölen ya da sürgün edilen kişinin
+  rolü masaya duyurulur (köy bilgi kazanır, yeni başlayanlar için kolay). Kapalıyken kimlik gizli
+  kalır; köy doğru kişiyi asıp asmadığını bilemez, vampirlerin blöf alanı genişler. Kimlikler her
+  hâlükârda oyun sonunda açılır.
+- **Ses ve titreşim** (varsayılan açık) — Gece/şafak/zafer efektleri, sayaç uyarıları; titreşim
+  Android'de çalışır. `public/sesler/essela.mp3` eklenirse "kimse ölmedi" şafağında o klip çalar
+  (ilk 4 sn + fade-out) — ayrıntı: `public/sesler/README.md`.
 
 ## Geliştirme
 

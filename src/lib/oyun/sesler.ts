@@ -22,9 +22,60 @@ export function sesleriEtkinlestir() {
   try {
     baglam ??= new AudioContext();
     if (baglam.state === "suspended") void baglam.resume();
+    // Özel klibi (varsa) şafak anında beklemeden çalabilmek için önden yükle.
+    void klipYukle();
   } catch {
     // Ses desteklenmiyorsa oyun sessiz devam eder.
   }
+}
+
+// — Özel "kurtuluş" klibi —
+// Depoya public/sesler/essela.mp3 eklenirse "kimse ölmedi" şafağında ilk
+// KLIP_SURE saniyesi çalar ve KLIP_FADE saniyede kısılarak susar. Dosya yoksa
+// sentezlenmiş şafak sesine düşülür. (Göreli yol: sayfa alt yolda yayınlansa da
+// — GitHub Pages — doğru adrese çözünür.)
+const KLIP_URL = "sesler/essela.mp3";
+const KLIP_SURE = 4;
+const KLIP_FADE = 1.5;
+let klipTampon: AudioBuffer | null | undefined;
+
+async function klipYukle(): Promise<AudioBuffer | null> {
+  if (klipTampon !== undefined) return klipTampon;
+  klipTampon = null;
+  try {
+    const yanit = await fetch(KLIP_URL);
+    if (yanit.ok && baglam) {
+      klipTampon = await baglam.decodeAudioData(await yanit.arrayBuffer());
+    }
+  } catch {
+    // Klip yok/çözülemedi: sentez sese düşülecek.
+  }
+  return klipTampon;
+}
+
+/** "Kimse ölmedi" şafağı: özel klip varsa onu, yoksa sentez şafak sesini çalar. */
+export function kurtulusCal() {
+  if (!etkin) return;
+  sesleriEtkinlestir();
+  if (!baglam) return;
+  void klipYukle().then((tampon) => {
+    if (!baglam) return;
+    if (!tampon) {
+      sesCal("safak");
+      return;
+    }
+    const kaynak = baglam.createBufferSource();
+    kaynak.buffer = tampon;
+    const kazanc = baglam.createGain();
+    const t = baglam.currentTime;
+    kazanc.gain.setValueAtTime(0.9, t);
+    kazanc.gain.setValueAtTime(0.9, t + KLIP_SURE);
+    kazanc.gain.linearRampToValueAtTime(0.0001, t + KLIP_SURE + KLIP_FADE);
+    kaynak.connect(kazanc);
+    kazanc.connect(baglam.destination);
+    kaynak.start(t);
+    kaynak.stop(t + KLIP_SURE + KLIP_FADE + 0.1);
+  });
 }
 
 function nota(
@@ -60,9 +111,9 @@ export function sesCal(tip: SesTipi) {
       nota(196, 0, 0.4, "sine", 0.12);
       nota(147, 0.25, 0.6, "sine", 0.12);
       break;
-    case "safak": // yükselen aydınlık çan
-      nota(392, 0, 0.25, "triangle", 0.12);
-      nota(523, 0.15, 0.35, "triangle", 0.12);
+    case "safak": // yumuşak, kısık bir sabah çanı
+      nota(330, 0, 0.3, "sine", 0.05);
+      nota(415, 0.18, 0.45, "sine", 0.05);
       break;
     case "olum": // boğuk tok vuruş
       nota(110, 0, 0.5, "sawtooth", 0.1);
