@@ -114,6 +114,8 @@ export interface Oyuncu {
   hayatta: boolean;
   olumNedeni: "vampir" | "infaz" | null;
   olumGunu: number | null;
+  /** İsteğe bağlı, istemcide kare kırpılmış küçük JPEG data URL'i; yoksa null. */
+  foto: string | null;
 }
 
 export interface Ayarlar {
@@ -214,7 +216,7 @@ export interface OylamaSonucu {
   cekimser: number;
 }
 
-export const OYUN_SURUMU = 4;
+export const OYUN_SURUMU = 5;
 export const MIN_OYUNCU = 4;
 export const MAKS_OYUNCU = 12;
 
@@ -278,7 +280,7 @@ export function oyuncuBul(oyuncular: Oyuncu[], id: number | null): Oyuncu | unde
   return oyuncular.find((o) => o.id === id);
 }
 
-/** Kazanan takım varsa döner, oyun sürüyorsa null. Tarafsızlar köy safinda sayılır. */
+/** Kazanan takım varsa döner, oyun sürüyorsa null. Tarafsızlar köy safında sayılır. */
 export function kazananKontrol(oyuncular: Oyuncu[]): Kazanan | null {
   const hayatta = hayattaOlanlar(oyuncular);
   const vampirler = hayatta.filter((o) => ROLLER[o.rol].takim === "vampir").length;
@@ -386,6 +388,7 @@ export function oyunculariOlustur(
   isimler: string[],
   dagilim: Record<RolId, number>,
   rastgele: () => number = guvenliRastgele,
+  fotolar?: (string | null)[],
 ): Oyuncu[] {
   const havuz: RolId[] = [];
   (Object.keys(dagilim) as RolId[]).forEach((rol) => {
@@ -399,11 +402,19 @@ export function oyunculariOlustur(
     hayatta: true,
     olumNedeni: null,
     olumGunu: null,
+    foto: fotolar?.[i] ?? null,
   }));
 }
 
 export type OyunAksiyonu =
-  | { tip: "oyunuKur"; isimler: string[]; dagilim: Record<RolId, number>; ayarlar: Ayarlar; rastgele?: () => number }
+  | {
+      tip: "oyunuKur";
+      isimler: string[];
+      dagilim: Record<RolId, number>;
+      ayarlar: Ayarlar;
+      fotolar?: (string | null)[];
+      rastgele?: () => number;
+    }
   | { tip: "kartiAc" }
   | { tip: "kartiKapat" }
   | { tip: "modKadroyuOnayla" }
@@ -473,7 +484,12 @@ export function oylariSay(oylar: Record<number, number | null>): OylamaSonucu {
 export function oyunReducer(durum: OyunDurumu, aksiyon: OyunAksiyonu): OyunDurumu {
   switch (aksiyon.tip) {
     case "oyunuKur": {
-      const oyuncular = oyunculariOlustur(aksiyon.isimler, aksiyon.dagilim, aksiyon.rastgele);
+      const oyuncular = oyunculariOlustur(
+        aksiyon.isimler,
+        aksiyon.dagilim,
+        aksiyon.rastgele,
+        aksiyon.fotolar,
+      );
       const moderatorlu = aksiyon.ayarlar.moderatorAdi !== null;
       return {
         ...bosDurum(aksiyon.ayarlar),
@@ -701,16 +717,17 @@ export function oyunReducer(durum: OyunDurumu, aksiyon: OyunAksiyonu): OyunDurum
       };
     }
 
-    // Rövans: isimler, oturma düzeni, rol dağılımı ve ayarlar korunur;
-    // yalnızca kura yeniden çekilir. Skor tablosu ayrı saklandığı için sürer.
+    // Rövanş: isimler, oturma düzeni, rol dağılımı ve ayarlar korunur;
+    // yalnızca kura yeniden çekilir. Skor tablosu ayrı sakланdığı için sürer.
     case "ayniMasaylaYeniOyun": {
       if (durum.asama !== "bitis") return durum;
       const isimler = durum.oyuncular.map((o) => o.ad);
+      const fotolar = durum.oyuncular.map((o) => o.foto);
       const dagilim: Record<RolId, number> = {
         vampir: 0, doktor: 0, gozcu: 0, koylu: 0, soytari: 0, sagkalan: 0,
       };
       durum.oyuncular.forEach((o) => { dagilim[o.rol]++; });
-      const oyuncular = oyunculariOlustur(isimler, dagilim, aksiyon.rastgele);
+      const oyuncular = oyunculariOlustur(isimler, dagilim, aksiyon.rastgele, fotolar);
       const moderatorlu = durum.ayarlar.moderatorAdi !== null;
       return {
         ...bosDurum(durum.ayarlar),
@@ -718,7 +735,7 @@ export function oyunReducer(durum: OyunDurumu, aksiyon: OyunAksiyonu): OyunDurum
         asama: moderatorlu ? "mod-kadro" : "dagitim",
         oyuncular,
         gunluk: [
-          { gun: 1, tip: "sistem", metin: `Aynı masa, yeni kura: ${oyuncular.length} kişilik rövans başlıyor.` },
+          { gun: 1, tip: "sistem", metin: `Aynı masa, yeni kura: ${oyuncular.length} kişilik rövanş başlıyor.` },
         ],
       };
     }

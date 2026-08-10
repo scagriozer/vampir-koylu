@@ -1,6 +1,7 @@
 "use client";
 
 import { ROLLER, type Oyuncu } from "@/lib/oyun/vampirKoylu";
+import { Avatar } from "./Avatar";
 import { Baslik, Buton, Panel } from "./ui";
 
 interface DagitimEkraniProps {
@@ -49,9 +50,13 @@ export function DagitimEkrani({ oyuncu, sira, toplam, acik, onAc, onKapat }: Dag
               className="flex h-64 w-48 flex-col items-center justify-center gap-2 rounded-3xl border border-white/20 p-4 text-center shadow-2xl"
               style={{ background: `linear-gradient(160deg, ${rol.renk[0]}, ${rol.renk[1]})` }}
             >
-              <span className="text-6xl" aria-hidden>
-                {rol.emoji}
-              </span>
+              {oyuncu.foto ? (
+                <Avatar foto={oyuncu.foto} emoji={rol.emoji} rol={rol} boyutRem={6.5} />
+              ) : (
+                <span className="text-6xl" aria-hidden>
+                  {rol.emoji}
+                </span>
+              )}
               <span className="text-2xl font-black text-white">{rol.ad}</span>
               <span
                 className={`rounded-full px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wide ${

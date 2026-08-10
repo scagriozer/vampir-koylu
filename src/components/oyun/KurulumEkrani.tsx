@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import type { ChangeEvent } from "react";
 import {
   MAKS_OYUNCU,
   MIN_OYUNCU,
@@ -11,19 +12,30 @@ import {
   type Ayarlar,
   type RolId,
 } from "@/lib/oyun/vampirKoylu";
+import { fotografiKareJpegYap } from "@/lib/oyun/foto";
 import { Baslik, Buton, Panel } from "./ui";
 
 const ROL_SIRASI: RolId[] = ["vampir", "doktor", "gozcu", "koylu", "soytari", "sagkalan"];
 const VARSAYILAN_OYUNCU = 6;
 
 interface KurulumEkraniProps {
-  onBasla: (isimler: string[], dagilim: Record<RolId, number>, ayarlar: Ayarlar) => void;
+  onBasla: (
+    isimler: string[],
+    dagilim: Record<RolId, number>,
+    ayarlar: Ayarlar,
+    fotolar: (string | null)[],
+  ) => void;
 }
 
 export function KurulumEkrani({ onBasla }: KurulumEkraniProps) {
   const [isimler, setIsimler] = useState<string[]>(() =>
     Array.from({ length: VARSAYILAN_OYUNCU }, (_, i) => `Oyuncu ${i + 1}`),
   );
+  const [fotolar, setFotolar] = useState<(string | null)[]>(() =>
+    Array.from({ length: VARSAYILAN_OYUNCU }, () => null),
+  );
+  const [yukleniyorIndeks, setYukleniyorIndeks] = useState<number | null>(null);
+  const dosyaGirdiRef = useRef<HTMLInputElement>(null);
   const [dagilim, setDagilim] = useState<Record<RolId, number>>(() =>
     varsayilanDagilim(VARSAYILAN_OYUNCU),
   );
@@ -55,11 +67,38 @@ export function KurulumEkrani({ onBasla }: KurulumEkraniProps) {
         ...Array.from({ length: sinirli - onceki.length }, (_, i) => `Oyuncu ${onceki.length + i + 1}`),
       ];
     });
+    setFotolar((onceki) => {
+      if (sinirli <= onceki.length) return onceki.slice(0, sinirli);
+      return [...onceki, ...Array.from({ length: sinirli - onceki.length }, () => null)];
+    });
     setDagilim(varsayilanDagilim(sinirli));
   }
 
   function rolAdediniDegistir(rol: RolId, fark: number) {
     setDagilim((onceki) => ({ ...onceki, [rol]: Math.max(0, onceki[rol] + fark) }));
+  }
+
+  function fotoSecmeyiBaslat(indeks: number) {
+    setYukleniyorIndeks(indeks);
+    dosyaGirdiRef.current?.click();
+  }
+
+  async function dosyaSecildi(e: ChangeEvent<HTMLInputElement>) {
+    const dosya = e.target.files?.[0];
+    e.target.value = ""; // aynı dosya tekrar seçilebilsin
+    const indeks = yukleniyorIndeks;
+    setYukleniyorIndeks(null);
+    if (!dosya || indeks === null) return;
+    try {
+      const veriUrl = await fotografiKareJpegYap(dosya);
+      setFotolar((onceki) => onceki.map((v, i) => (i === indeks ? veriUrl : v)));
+    } catch {
+      // Okunamayan/bozuk dosya: sessizce yoksay, oyuncu tekrar deneyebilir.
+    }
+  }
+
+  function fotoSil(indeks: number) {
+    setFotolar((onceki) => onceki.map((v, i) => (i === indeks ? null : v)));
   }
 
   return (
@@ -101,12 +140,27 @@ export function KurulumEkrani({ onBasla }: KurulumEkraniProps) {
           </div>
         </div>
 
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <p className="mb-1 mt-3 text-[0.7rem] text-white/40">
+          📷 Numaraya dokunup fotoğraf ekleyebilirsin (opsiyonel).
+        </p>
+        <div className="grid gap-2 sm:grid-cols-2">
           {isimler.map((isim, i) => (
-            <label key={i} className="flex min-h-11 items-center gap-2 rounded-xl bg-black/20 px-3 py-2">
-              <span className="w-6 shrink-0 text-center text-xs font-bold text-amber-300/80">
-                {i + 1}
-              </span>
+            <div key={i} className="flex min-h-11 items-center gap-2 rounded-xl bg-black/20 px-2 py-2">
+              <button
+                type="button"
+                onClick={() => fotoSecmeyiBaslat(i)}
+                className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/[0.06] text-xs font-bold text-amber-300/80"
+                aria-label={
+                  fotolar[i] ? `${i + 1}. oyuncunun fotoğrafını değiştir` : `${i + 1}. oyuncuya fotoğraf ekle`
+                }
+              >
+                {fotolar[i] ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- statik export, data URL; next/image gereksiz
+                  <img src={fotolar[i] ?? undefined} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  i + 1
+                )}
+              </button>
               <input
                 value={isim}
                 maxLength={18}
@@ -119,9 +173,26 @@ export function KurulumEkrani({ onBasla }: KurulumEkraniProps) {
                 placeholder={`Oyuncu ${i + 1}`}
                 aria-label={`${i + 1}. oyuncunun adı`}
               />
-            </label>
+              {fotolar[i] && (
+                <button
+                  type="button"
+                  onClick={() => fotoSil(i)}
+                  className="shrink-0 rounded-full px-1.5 py-1 text-xs text-white/40 hover:text-white/70"
+                  aria-label={`${i + 1}. oyuncunun fotoğrafını kaldır`}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
           ))}
         </div>
+        <input
+          ref={dosyaGirdiRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={dosyaSecildi}
+        />
       </Panel>
 
       <Panel>
@@ -190,7 +261,7 @@ export function KurulumEkrani({ onBasla }: KurulumEkraniProps) {
       <Panel>
         <SecenekSatiri
           baslik="🎙️ Moderatörlü oyun"
-          aciklama="Bir kişi moderatör olur, telefon hep onda kalır; kimse için el değişmez"
+          aciklama="Bir kişi moderatör olur, telefon hep onda kalır; kimse için el değiştirmez"
           acik={moderatorluAcik}
           onDegis={(v) =>
             setAyarlar((a) => ({
@@ -289,7 +360,7 @@ export function KurulumEkrani({ onBasla }: KurulumEkraniProps) {
             ...ayarlar,
             moderatorAdi: moderatorluAcik ? ayarlar.moderatorAdi?.trim() || "Moderatör" : null,
           };
-          onBasla(isimler, dagilim, nihaiAyarlar);
+          onBasla(isimler, dagilim, nihaiAyarlar, fotolar);
         }}
       >
         {moderatorluAcik ? "🎭 Kadroyu oluştur" : "🎬 Rolleri dağıt"}

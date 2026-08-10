@@ -190,8 +190,13 @@ export function VampirKoyluOyun() {
     dispatch({ tip: "yenidenBasla" });
   }
 
-  function oyunuKur(isimler: string[], dagilim: Record<RolId, number>, ayarlar: Ayarlar) {
-    dispatch({ tip: "oyunuKur", isimler, dagilim, ayarlar });
+  function oyunuKur(
+    isimler: string[],
+    dagilim: Record<RolId, number>,
+    ayarlar: Ayarlar,
+    fotolar: (string | null)[],
+  ) {
+    dispatch({ tip: "oyunuKur", isimler, dagilim, ayarlar, fotolar });
   }
 
   const gece = durum.asama === "gece";

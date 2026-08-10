@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { ROLLER, type Oyuncu } from "@/lib/oyun/vampirKoylu";
+import { Avatar } from "./Avatar";
 
 interface MasaGorunumuProps {
   oyuncular: Oyuncu[];
@@ -91,9 +92,13 @@ export function MasaGorunumu({
             >
               {i + 1}
             </span>
-            <span className="text-xl leading-none" aria-hidden>
-              {oyuncu.hayatta ? (rolGorunur ? rol.emoji : "🎭") : "💀"}
-            </span>
+            <Avatar
+              foto={oyuncu.foto}
+              emoji={oyuncu.hayatta ? (rolGorunur ? rol.emoji : "🎭") : "💀"}
+              rol={oyuncu.hayatta && rolGorunur ? rol : null}
+              olu={!oyuncu.hayatta}
+              boyutRem={2.25}
+            />
             <span
               className={`w-full truncate text-[0.7rem] font-semibold leading-tight ${
                 oyuncu.hayatta ? "text-white" : "text-white/50 line-through"
