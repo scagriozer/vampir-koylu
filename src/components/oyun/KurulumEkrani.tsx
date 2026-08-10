@@ -28,6 +28,7 @@ export function KurulumEkrani({ onBasla }: KurulumEkraniProps) {
     varsayilanDagilim(VARSAYILAN_OYUNCU),
   );
   const [ayarlar, setAyarlar] = useState<Ayarlar>(VARSAYILAN_AYARLAR);
+  const moderatorluAcik = ayarlar.moderatorAdi !== null;
 
   const oyuncuSayisi = isimler.length;
   const toplam = dagilimToplami(dagilim);
@@ -187,6 +188,41 @@ export function KurulumEkrani({ onBasla }: KurulumEkraniProps) {
       </Panel>
 
       <Panel>
+        <SecenekSatiri
+          baslik="🎙️ Moderatörlü oyun"
+          aciklama="Bir kişi moderatör olur, telefon hep onda kalır; kimse için el değişmez"
+          acik={moderatorluAcik}
+          onDegis={(v) =>
+            setAyarlar((a) => ({
+              ...a,
+              moderatorAdi: v ? "" : null,
+              gizliOylama: v ? false : a.gizliOylama,
+            }))
+          }
+        />
+        {moderatorluAcik && (
+          <div className="mt-2 space-y-2">
+            <label className="flex min-h-11 items-center gap-2 rounded-xl bg-black/20 px-3 py-2">
+              <span className="shrink-0 text-xs font-bold text-amber-300/80">Ad</span>
+              <input
+                value={ayarlar.moderatorAdi ?? ""}
+                onChange={(e) => setAyarlar((a) => ({ ...a, moderatorAdi: e.target.value }))}
+                onFocus={(e) => e.currentTarget.select()}
+                maxLength={18}
+                placeholder="Moderatör (opsiyonel)"
+                aria-label="Moderatörün adı"
+                className="w-full bg-transparent text-base font-semibold text-white outline-none placeholder:text-white/30"
+              />
+            </label>
+            <p className="px-1 text-xs leading-relaxed text-white/50">
+              Moderatör oyuncu listesine dahil değildir, rol almaz. Roller yalnızca moderatörün
+              ekranında görünür; oylama açık yürütülür.
+            </p>
+          </div>
+        )}
+      </Panel>
+
+      <Panel>
         <p className="text-sm font-bold text-white">Oyun ayarları</p>
 
         <div className="mt-3 space-y-3">
@@ -209,12 +245,20 @@ export function KurulumEkrani({ onBasla }: KurulumEkraniProps) {
             </select>
           </div>
 
-          <SecenekSatiri
-            baslik="Gizli oylama"
-            aciklama="Cihaz elden ele dolaşır, kimse kimin oyunu görmez"
-            acik={ayarlar.gizliOylama}
-            onDegis={(v) => setAyarlar((a) => ({ ...a, gizliOylama: v }))}
-          />
+          {moderatorluAcik ? (
+            <Panel className="!bg-black/20 !py-3">
+              <p className="text-center text-xs text-white/60">
+                Moderatörlü oyunda oylama her zaman açık yürütülür.
+              </p>
+            </Panel>
+          ) : (
+            <SecenekSatiri
+              baslik="Gizli oylama"
+              aciklama="Cihaz elden ele dolaşır, kimse kimin oyunu görmez"
+              acik={ayarlar.gizliOylama}
+              onDegis={(v) => setAyarlar((a) => ({ ...a, gizliOylama: v }))}
+            />
+          )}
           <SecenekSatiri
             baslik="Ses ve titreşim"
             aciklama="Gece, şafak, zafer ve süre uyarıları; titreşim Android'de çalışır"
@@ -236,8 +280,19 @@ export function KurulumEkrani({ onBasla }: KurulumEkraniProps) {
         </div>
       </Panel>
 
-      <Buton tamGenislik disabled={!!hata} onClick={() => onBasla(isimler, dagilim, ayarlar)}>
-        🎬 Rolleri dağıt
+      <Buton
+        tamGenislik
+        disabled={!!hata}
+        onClick={() => {
+          // Ad alanı boş bırakılmışsa (moderatör var ama isim girilmemiş) makul bir varsayılan kullan.
+          const nihaiAyarlar: Ayarlar = {
+            ...ayarlar,
+            moderatorAdi: moderatorluAcik ? ayarlar.moderatorAdi?.trim() || "Moderatör" : null,
+          };
+          onBasla(isimler, dagilim, nihaiAyarlar);
+        }}
+      >
+        {moderatorluAcik ? "🎭 Kadroyu oluştur" : "🎬 Rolleri dağıt"}
       </Buton>
     </div>
   );

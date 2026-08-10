@@ -18,8 +18,10 @@ import { BitisEkrani } from "./BitisEkrani";
 import { DagitimEkrani } from "./DagitimEkrani";
 import { GeceEkrani } from "./GeceEkrani";
 import { GunEkrani } from "./GunEkrani";
+import { KadroModal, ModKadroEkrani } from "./Kadro";
 import { KurallarModal } from "./KurallarModal";
 import { KurulumEkrani } from "./KurulumEkrani";
+import { ModeratorGeceEkrani } from "./ModeratorGeceEkrani";
 import { Buton } from "./ui";
 
 const DEPO_ANAHTARI = "vampir-koylu-durum";
@@ -40,6 +42,7 @@ function skorOku(): SkorTablosu {
 
 const ASAMA_ETIKETI: Record<string, string> = {
   kurulum: "Masa kurulumu",
+  "mod-kadro": "Kadro",
   dagitim: "Rol dağıtımı",
   gece: "Gece",
   safak: "Şafak",
@@ -69,6 +72,7 @@ function kayitliDurumuOku() {
 export function VampirKoyluOyun() {
   const [durum, dispatch] = useReducer(oyunReducer, undefined, kayitliDurumuOku);
   const [kurallarAcik, setKurallarAcik] = useState(false);
+  const [kadroAcik, setKadroAcik] = useState(false);
   const tepeRef = useRef<HTMLDivElement>(null);
   const ilkRenderRef = useRef(true);
 
@@ -98,7 +102,7 @@ export function VampirKoyluOyun() {
 
   // Her yeni adımda ekranın başına dön ve kısa bir titreşimle "sıra değişti"
   // sinyali ver: cihaz elden ele geçerken sıradaki oyuncu adımın başında karşılansın.
-  const adimAnahtari = `${durum.asama}-${durum.gun}-${durum.geceSira}-${durum.oySira}-${durum.dagitimSira}-${durum.dagitimAcik}`;
+  const adimAnahtari = `${durum.asama}-${durum.gun}-${durum.geceSira}-${durum.modGeceAdim}-${durum.oySira}-${durum.dagitimSira}-${durum.dagitimAcik}`;
   useEffect(() => {
     if (ilkRenderRef.current) {
       ilkRenderRef.current = false;
@@ -225,6 +229,11 @@ export function VampirKoyluOyun() {
             </p>
           </div>
           <div className="flex shrink-0 gap-2">
+            {durum.ayarlar.moderatorAdi && durum.asama !== "kurulum" && durum.asama !== "mod-kadro" && (
+              <Buton ton="hayalet" className="!px-3 !py-2 !text-xs" onClick={() => setKadroAcik(true)}>
+                Kadro
+              </Buton>
+            )}
             <Buton ton="hayalet" className="!px-3 !py-2 !text-xs" onClick={() => setKurallarAcik(true)}>
               Kurallar
             </Buton>
@@ -238,6 +247,8 @@ export function VampirKoyluOyun() {
 
         {durum.asama === "kurulum" ? (
           <KurulumEkrani onBasla={oyunuKur} />
+        ) : durum.asama === "mod-kadro" ? (
+          <ModKadroEkrani durum={durum} onBasla={() => dispatch({ tip: "modKadroyuOnayla" })} />
         ) : durum.asama === "dagitim" ? (
           <DagitimEkrani
             oyuncu={durum.oyuncular[durum.dagitimSira]}
@@ -248,12 +259,21 @@ export function VampirKoyluOyun() {
             onKapat={() => dispatch({ tip: "kartiKapat" })}
           />
         ) : durum.asama === "gece" ? (
-          <GeceEkrani
-            key={`${durum.gun}-${durum.geceSira}`}
-            durum={durum}
-            onHedefSec={(hedefId) => dispatch({ tip: "geceHedefSec", hedefId })}
-            onSirayiTamamla={() => dispatch({ tip: "geceSirasiniTamamla" })}
-          />
+          durum.ayarlar.moderatorAdi ? (
+            <ModeratorGeceEkrani
+              key={`${durum.gun}-${durum.modGeceAdim}`}
+              durum={durum}
+              onHedefSec={(hedefId) => dispatch({ tip: "geceHedefSec", hedefId })}
+              onSirayiTamamla={() => dispatch({ tip: "geceSirasiniTamamla" })}
+            />
+          ) : (
+            <GeceEkrani
+              key={`${durum.gun}-${durum.geceSira}`}
+              durum={durum}
+              onHedefSec={(hedefId) => dispatch({ tip: "geceHedefSec", hedefId })}
+              onSirayiTamamla={() => dispatch({ tip: "geceSirasiniTamamla" })}
+            />
+          )
         ) : durum.asama === "bitis" ? (
           <BitisEkrani
             durum={durum}
@@ -275,6 +295,7 @@ export function VampirKoyluOyun() {
       </div>
 
       {kurallarAcik && <KurallarModal onKapat={() => setKurallarAcik(false)} />}
+      {kadroAcik && <KadroModal durum={durum} onKapat={() => setKadroAcik(false)} />}
     </div>
   );
 }

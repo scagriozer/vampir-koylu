@@ -98,6 +98,7 @@ export const ROLLER: Record<RolId, RolTanim> = {
 
 export type Asama =
   | "kurulum"
+  | "mod-kadro"
   | "dagitim"
   | "gece"
   | "safak"
@@ -130,6 +131,13 @@ export interface Ayarlar {
   olulerinRoluAcik: boolean;
   /** Faz geçişlerinde ses efektleri ve (Android'de) titreşim */
   sesEfektleri: boolean;
+  /**
+   * Moderatörlü oyun: null ise kapalı (klasik pass & play). Dolu olduğunda bu,
+   * masayı yöneten kişinin adıdır — oyuncu listesine dahil değildir, rol
+   * almaz. Cihaz moderatörde kalır, hiç el değiştirmez; oylama açık yürütülür
+   * (bkz. `gizliOylama` — moderatörlü oyunda kurulum ekranı bunu zorlar).
+   */
+  moderatorAdi: string | null;
 }
 
 export const VARSAYILAN_AYARLAR: Ayarlar = {
@@ -138,6 +146,7 @@ export const VARSAYILAN_AYARLAR: Ayarlar = {
   doktorArtArdaAyniKisi: false,
   olulerinRoluAcik: false,
   sesEfektleri: true,
+  moderatorAdi: null,
 };
 
 export interface GunlukKaydi {
@@ -165,6 +174,11 @@ export interface OyunDurumu {
    * sırayla geçmesi, ekranın dışını herkeste aynı yaparak rolleri gizler.
    */
   geceSira: number;
+  /**
+   * Moderatörlü oyunda gece sırası koltuk değil ROL bazlıdır (vampir → doktor
+   * → gözcü); bu, o sıradaki rolün `moderatorGeceSirasi` içindeki indeksidir.
+   */
+  modGeceAdim: number;
   /** vampir oyuncu id → seçtiği kurban */
   vampirSecimleri: Record<number, number>;
   /** o gece korunan oyuncu id'leri (birden çok doktor olabilir) */
@@ -200,7 +214,7 @@ export interface OylamaSonucu {
   cekimser: number;
 }
 
-export const OYUN_SURUMU = 3;
+export const OYUN_SURUMU = 4;
 export const MIN_OYUNCU = 4;
 export const MAKS_OYUNCU = 12;
 
@@ -264,7 +278,7 @@ export function oyuncuBul(oyuncular: Oyuncu[], id: number | null): Oyuncu | unde
   return oyuncular.find((o) => o.id === id);
 }
 
-/** Kazanan takım varsa döner, oyun sürüyorsa null. Tarafsızlar köy safında sayılır. */
+/** Kazanan takım varsa döner, oyun sürüyorsa null. Tarafsızlar köy safinda sayılır. */
 export function kazananKontrol(oyuncular: Oyuncu[]): Kazanan | null {
   const hayatta = hayattaOlanlar(oyuncular);
   const vampirler = hayatta.filter((o) => ROLLER[o.rol].takim === "vampir").length;
@@ -300,6 +314,24 @@ export function doktorYasakHedef(durum: OyunDurumu, doktorId: number): number | 
 }
 
 /**
+ * Moderatörlü oyunda gece, koltuk sırası değil ROL sırasıyla işler: moderatör
+ * zaten herkesin rolünü bildiği için (bkz. Kadro ekranı) gizlemeye gerek
+ * yoktur — "vampirler uyansın" der, oyuncuların işaretiyle hedefi tek
+ * ekrandan girer. Sırayla vampir → doktor → gözcü, yalnızca hayatta biri
+ * varsa çağrılır. Vampir en az bir kişi hayattayken (yani oyun sürerken)
+ * her zaman listede olduğundan bu dizi asla boş dönmez.
+ */
+const MODERATOR_GECE_SIRASI: RolId[] = ["vampir", "doktor", "gozcu"];
+
+export function moderatorGeceSirasi(oyuncular: Oyuncu[]): RolId[] {
+  return MODERATOR_GECE_SIRASI.filter((rol) => rolSayisi(oyuncular, rol) > 0);
+}
+
+export function moderatorGeceSirasindaki(durum: OyunDurumu): RolId | undefined {
+  return moderatorGeceSirasi(durum.oyuncular)[durum.modGeceAdim];
+}
+
+/**
  * Vampirlerin seçimlerinden kurbanı belirler. Vampirler aynı kişide birleşmezse
  * en çok oy alan; eşitlikte oy alanlar arasından rastgele biri seçilir.
  */
@@ -328,6 +360,7 @@ function bosDurum(ayarlar: Ayarlar): OyunDurumu {
     dagitimSira: 0,
     dagitimAcik: false,
     geceSira: 0,
+    modGeceAdim: 0,
     vampirSecimleri: {},
     korunanlar: [],
     gozcuIncelemeleri: {},
@@ -373,6 +406,7 @@ export type OyunAksiyonu =
   | { tip: "oyunuKur"; isimler: string[]; dagilim: Record<RolId, number>; ayarlar: Ayarlar; rastgele?: () => number }
   | { tip: "kartiAc" }
   | { tip: "kartiKapat" }
+  | { tip: "modKadroyuOnayla" }
   | { tip: "geceyeBasla" }
   | { tip: "geceHedefSec"; hedefId: number }
   | { tip: "geceSirasiniTamamla" }
@@ -394,6 +428,7 @@ function log(durum: OyunDurumu, kayit: GunlukKaydi): GunlukKaydi[] {
 function geceSifirla(): Partial<OyunDurumu> {
   return {
     geceSira: 0,
+    modGeceAdim: 0,
     vampirSecimleri: {},
     korunanlar: [],
     gozcuIncelemeleri: {},
@@ -439,16 +474,19 @@ export function oyunReducer(durum: OyunDurumu, aksiyon: OyunAksiyonu): OyunDurum
   switch (aksiyon.tip) {
     case "oyunuKur": {
       const oyuncular = oyunculariOlustur(aksiyon.isimler, aksiyon.dagilim, aksiyon.rastgele);
+      const moderatorlu = aksiyon.ayarlar.moderatorAdi !== null;
       return {
         ...bosDurum(aksiyon.ayarlar),
         oyunKimligi: kimlikUret(aksiyon.rastgele),
-        asama: "dagitim",
+        asama: moderatorlu ? "mod-kadro" : "dagitim",
         oyuncular,
         gunluk: [
           {
             gun: 1,
             tip: "sistem",
-            metin: `${oyuncular.length} kişilik masa kuruldu. Roller dağıtılıyor…`,
+            metin: moderatorlu
+              ? `${oyuncular.length} kişilik masa kuruldu. Roller ${aksiyon.ayarlar.moderatorAdi}'in ekranında.`
+              : `${oyuncular.length} kişilik masa kuruldu. Roller dağıtılıyor…`,
           },
         ],
       };
@@ -471,6 +509,12 @@ export function oyunReducer(durum: OyunDurumu, aksiyon: OyunAksiyonu): OyunDurum
       return { ...durum, dagitimAcik: false, dagitimSira: sonraki };
     }
 
+    // Moderatörlü oyunda dağıtım yoktur: moderatör kadroyu tek ekranda görür,
+    // onaylayınca doğrudan geceye geçilir.
+    case "modKadroyuOnayla":
+      if (durum.asama !== "mod-kadro") return durum;
+      return { ...durum, asama: "gece", ...geceSifirla() };
+
     case "geceyeBasla":
       return { ...durum, asama: "gece", ...geceSifirla() };
 
@@ -480,6 +524,49 @@ export function oyunReducer(durum: OyunDurumu, aksiyon: OyunAksiyonu): OyunDurum
       return { ...durum, buSiradakiSecim: aksiyon.hedefId };
 
     case "geceSirasiniTamamla": {
+      // — Moderatörlü oyun: koltuk değil ROL bazlı ilerler; bir seçim o
+      // rolün TÜM canlı üyelerine aynen uygulanır (moderatör grubu tek
+      // ekrandan yönetir, oyuncular birbirini zaten tanımıyor olabilir ama
+      // moderatör hepsini görüyor). —
+      if (durum.ayarlar.moderatorAdi) {
+        const roller = moderatorGeceSirasi(durum.oyuncular);
+        const rolId = roller[durum.modGeceAdim];
+        const secim = durum.buSiradakiSecim;
+        const islenmis: Partial<OyunDurumu> = {};
+
+        if (rolId && secim !== null) {
+          const grup = hayattaOlanlar(durum.oyuncular).filter((o) => o.rol === rolId);
+          if (rolId === "vampir") {
+            islenmis.vampirSecimleri = {
+              ...durum.vampirSecimleri,
+              ...Object.fromEntries(grup.map((o) => [o.id, secim])),
+            };
+          } else if (rolId === "doktor") {
+            islenmis.korunanlar = [...durum.korunanlar, secim];
+            islenmis.sonKorunanlar = {
+              ...durum.sonKorunanlar,
+              ...Object.fromEntries(grup.map((o) => [o.id, secim])),
+            };
+          } else if (rolId === "gozcu") {
+            islenmis.gozcuIncelemeleri = {
+              ...durum.gozcuIncelemeleri,
+              ...Object.fromEntries(grup.map((o) => [o.id, secim])),
+            };
+          }
+        }
+
+        const sonraki = durum.modGeceAdim + 1;
+        const bitti = sonraki >= roller.length;
+        return {
+          ...durum,
+          ...islenmis,
+          modGeceAdim: sonraki,
+          buSiradakiSecim: null,
+          asama: bitti ? "safak" : durum.asama,
+        };
+      }
+
+      // — Normal (moderatörsüz) oyun: koltuk sırasıyla herkes —
       const oyuncu = geceSirasindaki(durum);
       const secim = durum.buSiradakiSecim;
       const islenmis: Partial<OyunDurumu> = {};
@@ -614,8 +701,8 @@ export function oyunReducer(durum: OyunDurumu, aksiyon: OyunAksiyonu): OyunDurum
       };
     }
 
-    // Rövanş: isimler, oturma düzeni, rol dağılımı ve ayarlar korunur;
-    // yalnızca kura yeniden çekilir. Skor tablosu ayrı sakланdığı için sürer.
+    // Rövans: isimler, oturma düzeni, rol dağılımı ve ayarlar korunur;
+    // yalnızca kura yeniden çekilir. Skor tablosu ayrı saklandığı için sürer.
     case "ayniMasaylaYeniOyun": {
       if (durum.asama !== "bitis") return durum;
       const isimler = durum.oyuncular.map((o) => o.ad);
@@ -624,13 +711,14 @@ export function oyunReducer(durum: OyunDurumu, aksiyon: OyunAksiyonu): OyunDurum
       };
       durum.oyuncular.forEach((o) => { dagilim[o.rol]++; });
       const oyuncular = oyunculariOlustur(isimler, dagilim, aksiyon.rastgele);
+      const moderatorlu = durum.ayarlar.moderatorAdi !== null;
       return {
         ...bosDurum(durum.ayarlar),
         oyunKimligi: kimlikUret(aksiyon.rastgele),
-        asama: "dagitim",
+        asama: moderatorlu ? "mod-kadro" : "dagitim",
         oyuncular,
         gunluk: [
-          { gun: 1, tip: "sistem", metin: `Aynı masa, yeni kura: ${oyuncular.length} kişilik rövanş başlıyor.` },
+          { gun: 1, tip: "sistem", metin: `Aynı masa, yeni kura: ${oyuncular.length} kişilik rövans başlıyor.` },
         ],
       };
     }
