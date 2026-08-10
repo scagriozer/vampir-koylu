@@ -418,6 +418,7 @@ export type OyunAksiyonu =
   | { tip: "kartiAc" }
   | { tip: "kartiKapat" }
   | { tip: "modKadroyuOnayla" }
+  | { tip: "dagitimiAtla" }
   | { tip: "geceyeBasla" }
   | { tip: "geceHedefSec"; hedefId: number }
   | { tip: "geceSirasiniTamamla" }
@@ -530,6 +531,13 @@ export function oyunReducer(durum: OyunDurumu, aksiyon: OyunAksiyonu): OyunDurum
     case "modKadroyuOnayla":
       if (durum.asama !== "mod-kadro") return durum;
       return { ...durum, asama: "gece", ...geceSifirla() };
+
+    // Ağ üzerinden oyunda da dağıtım yoktur: her oyuncu rolünü zaten kendi
+    // cihazında, ayrı ayrı görür (cihaz elden ele geçmez), sıra bazlı
+    // dağıtım animasyonuna gerek yok.
+    case "dagitimiAtla":
+      if (durum.asama !== "dagitim") return durum;
+      return { ...durum, dagitimSira: durum.oyuncular.length, dagitimAcik: false, asama: "gece", ...geceSifirla() };
 
     case "geceyeBasla":
       return { ...durum, asama: "gece", ...geceSifirla() };
