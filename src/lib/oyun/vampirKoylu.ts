@@ -188,6 +188,8 @@ export interface OyunDurumu {
 
   kazanan: Kazanan | null;
   gunluk: GunlukKaydi[];
+  /** Her oyuna özgü kimlik: skor tablosu aynı oyunu iki kez saymasın diye. */
+  oyunKimligi: string;
 }
 
 export interface OylamaSonucu {
@@ -232,6 +234,11 @@ export function guvenliRastgele(): number {
     return dizi[0] / 4294967296;
   }
   return Math.random();
+}
+
+/** Skor takibi için kısa, oyuna özgü kimlik üretir. */
+export function kimlikUret(rastgele: () => number = guvenliRastgele): string {
+  return Math.floor(rastgele() * 36 ** 8).toString(36).padStart(8, "0");
 }
 
 /** Fisher–Yates. Test edilebilirlik için rastgelelik dışarıdan verilebilir. */
@@ -333,6 +340,7 @@ function bosDurum(ayarlar: Ayarlar): OyunDurumu {
     oylamaSonucu: null,
     kazanan: null,
     gunluk: [],
+    oyunKimligi: "",
   };
 }
 
@@ -374,6 +382,7 @@ export type OyunAksiyonu =
   | { tip: "oyVer"; hedefId: number | null }
   | { tip: "oylamayiSonuclandir" }
   | { tip: "sonucuOnayla" }
+  | { tip: "ayniMasaylaYeniOyun"; rastgele?: () => number }
   | { tip: "ayarGuncelle"; ayarlar: Partial<Ayarlar> }
   | { tip: "yenidenBasla" }
   | { tip: "durumuYukle"; durum: OyunDurumu };
@@ -432,6 +441,7 @@ export function oyunReducer(durum: OyunDurumu, aksiyon: OyunAksiyonu): OyunDurum
       const oyuncular = oyunculariOlustur(aksiyon.isimler, aksiyon.dagilim, aksiyon.rastgele);
       return {
         ...bosDurum(aksiyon.ayarlar),
+        oyunKimligi: kimlikUret(aksiyon.rastgele),
         asama: "dagitim",
         oyuncular,
         gunluk: [
@@ -601,6 +611,27 @@ export function oyunReducer(durum: OyunDurumu, aksiyon: OyunAksiyonu): OyunDurum
         oySira: 0,
         oylamaSonucu: null,
         gunluk,
+      };
+    }
+
+    // Rövanş: isimler, oturma düzeni, rol dağılımı ve ayarlar korunur;
+    // yalnızca kura yeniden çekilir. Skor tablosu ayrı sakланdığı için sürer.
+    case "ayniMasaylaYeniOyun": {
+      if (durum.asama !== "bitis") return durum;
+      const isimler = durum.oyuncular.map((o) => o.ad);
+      const dagilim: Record<RolId, number> = {
+        vampir: 0, doktor: 0, gozcu: 0, koylu: 0, soytari: 0, sagkalan: 0,
+      };
+      durum.oyuncular.forEach((o) => { dagilim[o.rol]++; });
+      const oyuncular = oyunculariOlustur(isimler, dagilim, aksiyon.rastgele);
+      return {
+        ...bosDurum(durum.ayarlar),
+        oyunKimligi: kimlikUret(aksiyon.rastgele),
+        asama: "dagitim",
+        oyuncular,
+        gunluk: [
+          { gun: 1, tip: "sistem", metin: `Aynı masa, yeni kura: ${oyuncular.length} kişilik rövanş başlıyor.` },
+        ],
       };
     }
 

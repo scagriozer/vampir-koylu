@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useReducer, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 // Bu bileşen yalnızca istemcide (ssr: false) yüklenir; bu yüzden ilk render'da
 // localStorage'ı doğrudan okumak güvenlidir, hydration uyuşmazlığı oluşmaz.
 import {
@@ -12,6 +12,7 @@ import {
   type Ayarlar,
   type RolId,
 } from "@/lib/oyun/vampirKoylu";
+import { bosSkorTablosu, gecerliSkorMu, oyunuIsle, type SkorTablosu } from "@/lib/oyun/skor";
 import { klipCal, sesAyarla, sesCal, titret } from "@/lib/oyun/sesler";
 import { BitisEkrani } from "./BitisEkrani";
 import { DagitimEkrani } from "./DagitimEkrani";
@@ -22,6 +23,20 @@ import { KurulumEkrani } from "./KurulumEkrani";
 import { Buton } from "./ui";
 
 const DEPO_ANAHTARI = "vampir-koylu-durum";
+const SKOR_ANAHTARI = "vampir-koylu-skor";
+
+function skorOku(): SkorTablosu {
+  try {
+    const ham = window.localStorage.getItem(SKOR_ANAHTARI);
+    if (ham) {
+      const veri: unknown = JSON.parse(ham);
+      if (gecerliSkorMu(veri)) return veri;
+    }
+  } catch {
+    // Bozuk kayıt: boş tabloyla devam.
+  }
+  return bosSkorTablosu();
+}
 
 const ASAMA_ETIKETI: Record<string, string> = {
   kurulum: "Masa kurulumu",
@@ -56,6 +71,30 @@ export function VampirKoyluOyun() {
   const [kurallarAcik, setKurallarAcik] = useState(false);
   const tepeRef = useRef<HTMLDivElement>(null);
   const ilkRenderRef = useRef(true);
+
+  // Skor tablosu oyun durumundan bağımsız birikir. Biten oyun render sırasında
+  // işlenir (oyunuIsle aynı oyunu iki kez saymaz), kalıcılaştırma efekte kalır.
+  const [skorSurumu, setSkorSurumu] = useState(0);
+  // skorSurumu bilinçli bağımlılık: sıfırlama sonrası localStorage'ı yeniden okutur.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const skor = useMemo(() => oyunuIsle(skorOku(), durum), [durum, skorSurumu]);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(SKOR_ANAHTARI, JSON.stringify(skor));
+    } catch {
+      // Depolama kapalıysa skor tutulamaz, oyun etkilenmez.
+    }
+  }, [skor]);
+
+  function skorTablosunuSifirla() {
+    if (!window.confirm("Skor tablosu sıfırlansın mı? Tüm oyun geçmişi silinecek.")) return;
+    try {
+      window.localStorage.removeItem(SKOR_ANAHTARI);
+    } catch {
+      // yoksay
+    }
+    setSkorSurumu((v) => v + 1);
+  }
 
   // Her yeni adımda ekranın başına dön ve kısa bir titreşimle "sıra değişti"
   // sinyali ver: cihaz elden ele geçerken sıradaki oyuncu adımın başında karşılansın.
@@ -216,7 +255,13 @@ export function VampirKoyluOyun() {
             onSirayiTamamla={() => dispatch({ tip: "geceSirasiniTamamla" })}
           />
         ) : durum.asama === "bitis" ? (
-          <BitisEkrani durum={durum} onYenidenBasla={() => dispatch({ tip: "yenidenBasla" })} />
+          <BitisEkrani
+            durum={durum}
+            skor={skor}
+            onAyniMasaylaYeniOyun={() => dispatch({ tip: "ayniMasaylaYeniOyun" })}
+            onYenidenBasla={() => dispatch({ tip: "yenidenBasla" })}
+            onSkorSifirla={skorTablosunuSifirla}
+          />
         ) : (
           <GunEkrani
             durum={durum}

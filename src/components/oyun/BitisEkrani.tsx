@@ -1,15 +1,25 @@
 "use client";
 
 import { ROLLER, type OyunDurumu } from "@/lib/oyun/vampirKoylu";
+import type { SkorTablosu } from "@/lib/oyun/skor";
 import { MasaGorunumu } from "./MasaGorunumu";
 import { Baslik, Buton, Panel } from "./ui";
 
 interface BitisEkraniProps {
   durum: OyunDurumu;
+  skor: SkorTablosu;
+  onAyniMasaylaYeniOyun: () => void;
   onYenidenBasla: () => void;
+  onSkorSifirla: () => void;
 }
 
-export function BitisEkrani({ durum, onYenidenBasla }: BitisEkraniProps) {
+export function BitisEkrani({
+  durum,
+  skor,
+  onAyniMasaylaYeniOyun,
+  onYenidenBasla,
+  onSkorSifirla,
+}: BitisEkraniProps) {
   const kazanan = durum.kazanan;
   // Soytarı yalnızca asılarak kazanır; kazanan Soytarı = infazla ölen soytarı.
   const soytariOyuncu = durum.oyuncular.find(
@@ -83,6 +93,44 @@ export function BitisEkrani({ durum, onYenidenBasla }: BitisEkraniProps) {
       </Panel>
 
       <Panel>
+        <div className="mb-2 flex items-baseline justify-between">
+          <p className="text-xs font-bold uppercase tracking-widest text-white/50">
+            Skor tablosu · {skor.oyunSayisi} oyun
+          </p>
+          <button
+            type="button"
+            onClick={onSkorSifirla}
+            className="-my-2 inline-flex min-h-11 items-center px-2 text-xs font-semibold text-white/40 underline-offset-2 hover:text-white/70 hover:underline"
+          >
+            Sıfırla
+          </button>
+        </div>
+        <p className="mb-3 text-center text-sm font-bold text-white">
+          🌾 Köy {skor.takimlar.koy} — {skor.takimlar.vampir} Vampir 🧛
+          {skor.takimlar.soytari > 0 && (
+            <span className="text-white/60"> · 🃏 {skor.takimlar.soytari}</span>
+          )}
+        </p>
+        <ul className="space-y-1">
+          {Object.entries(skor.oyuncular)
+            .sort((a, b) => b[1].galibiyet - a[1].galibiyet || b[1].oyun - a[1].oyun)
+            .map(([ad, s]) => (
+              <li key={ad} className="flex items-center gap-2 text-sm">
+                <span className="min-w-0 flex-1 truncate font-semibold text-white">{ad}</span>
+                <span className="shrink-0 text-white/70">
+                  {s.galibiyet}G / {s.oyun}O
+                </span>
+                <span className="w-20 shrink-0 text-right text-xs text-white/50">
+                  🧛×{s.vampirCikma}
+                  {s.soytariZaferi > 0 && ` 🃏×${s.soytariZaferi}`}
+                  {s.sagKalma > 0 && ` 🎒×${s.sagKalma}`}
+                </span>
+              </li>
+            ))}
+        </ul>
+      </Panel>
+
+      <Panel>
         <p className="mb-2 text-xs font-bold uppercase tracking-widest text-white/50">Olay günlüğü</p>
         <ol className="space-y-1.5">
           {durum.gunluk.map((kayit, i) => (
@@ -94,8 +142,12 @@ export function BitisEkrani({ durum, onYenidenBasla }: BitisEkraniProps) {
         </ol>
       </Panel>
 
-      <Buton tamGenislik onClick={onYenidenBasla}>
-        🔄 Yeni oyun kur
+      {/* Rövanş: aynı isimler, aynı dağılım, aynı ayarlar — sadece kura yeniden çekilir. */}
+      <Buton tamGenislik onClick={onAyniMasaylaYeniOyun}>
+        🔁 Aynı masayla tekrar oyna
+      </Buton>
+      <Buton tamGenislik ton="ikincil" onClick={onYenidenBasla}>
+        🧹 Masayı değiştir · yeni kurulum
       </Buton>
     </div>
   );
