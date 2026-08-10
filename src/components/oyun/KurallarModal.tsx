@@ -98,6 +98,20 @@ export function KurallarModal({ onKapat }: { onKapat: () => void }) {
           ))}
         </ol>
 
+        <h4 className="mt-5 text-xs font-bold uppercase tracking-widest text-amber-300/80">
+          Moderatörlü oyun
+        </h4>
+        <div className="mt-2 rounded-xl bg-white/[0.04] p-3">
+          <p className="text-xs leading-relaxed text-white/65">
+            Kurulumda bir kişiyi moderatör seçebilirsiniz: cihaz o kişide kalır, hiç el
+            değiştirmez. Moderatör oyuncu değildir, rol almaz — kadroyu tek ekranda görür ve
+            herkese kendi rolünü ayrı ayrı, gizlice söyler. Gece koltuk sırası yerine rol sırasıyla
+            işler (vampir → doktor → gözcü); moderatör oyuncuların işaretiyle hedefi masadan
+            seçer. Oynarken kadroya tekrar bakmak için üst çubuktaki &quot;Kadro&quot; butonunu
+            kullanabilir. Oylama bu modda her zaman açık yürütülür.
+          </p>
+        </div>
+
         <div className="mt-6">
           <Buton tamGenislik ton="ikincil" onClick={onKapat}>
             Kapat
