@@ -13,7 +13,7 @@ interface VedaEkraniProps {
 
 /**
  * Ölen oyuncu cihazı bir kez daha devralır (gizli, "Sıra bende" kapısıyla —
- * bkz. GeceEkrani) ve bir GIF ile isteğe bağlı tek kelimelik bir veda bırakır.
+ * bkz. GeceEkrani) ve bir GIF ile isteğe bağlı serbest metinli bir veda bırakır.
  * Masaya döndüğünde mesaj herkese açık gösterilir (bkz. GunEkrani/BitisEkrani).
  */
 export function VedaEkrani({ oyuncu, onKaydet, onAtla }: VedaEkraniProps) {
@@ -25,7 +25,7 @@ export function VedaEkrani({ oyuncu, onKaydet, onAtla }: VedaEkraniProps) {
         <Baslik
           ustBaslik="Veda mesajı"
           baslik={`Cihaz ${oyuncu.ad}'de`}
-          aciklama="Ekranı kimse görmesin. Son sözünü bir GIF ve istersen tek kelimeyle bırak."
+          aciklama="Ekranı kimse görmesin. Son sözünü bir GIF ve istersen bir mesajla bırak."
         />
         <div className="flex justify-center py-8 text-7xl" aria-hidden>
           🕯️
@@ -66,7 +66,7 @@ function VedaSecici({ oyuncu, onKaydet, onAtla }: VedaEkraniProps) {
         })
         .catch(() => {
           if (istekSirasiRef.current !== sira) return;
-          setHata("GIF'ler yüklenemedi. Bağlantını kontrol et ya da yalnızca kelimeyle devam et.");
+          setHata("GIF'ler yüklenemedi. Bağlantını kontrol et ya da yalnızca mesajla devam et.");
         })
         .finally(() => {
           if (istekSirasiRef.current !== sira) return;
@@ -75,11 +75,6 @@ function VedaSecici({ oyuncu, onKaydet, onAtla }: VedaEkraniProps) {
     }, gecikme);
     return () => clearTimeout(zamanlayici);
   }, [sorgu, yapilandirilmis]);
-
-  function kelimeDegisti(deger: string) {
-    // Tek kelime hakkı: boşluk (dolayısıyla ikinci kelime) girilemez.
-    setKelime(deger.replace(/\s+/g, "").slice(0, 24));
-  }
 
   const gonderilebilir = Boolean(secili || kelime.trim());
 
@@ -95,8 +90,8 @@ function VedaSecici({ oyuncu, onKaydet, onAtla }: VedaEkraniProps) {
         baslik="Son sözün ne?"
         aciklama={
           yapilandirilmis
-            ? "Bir GIF seç, istersen tek kelime de ekle. İkisi de opsiyonel."
-            : "GIF araması bu masada açık değil; istersen tek kelimelik bir veda bırakabilirsin."
+            ? "Bir GIF seç, istersen bir de mesaj yaz. İkisi de opsiyonel."
+            : "GIF araması bu masada açık değil; istersen bir mesajla veda edebilirsin."
         }
       />
 
@@ -147,13 +142,14 @@ function VedaSecici({ oyuncu, onKaydet, onAtla }: VedaEkraniProps) {
         </>
       )}
 
-      <input
+      <textarea
         value={kelime}
-        onChange={(e) => kelimeDegisti(e.target.value)}
-        maxLength={24}
-        placeholder="Tek kelimelik son sözün (opsiyonel)"
-        className="w-full rounded-xl bg-black/20 px-4 py-3 text-base text-white outline-none ring-1 ring-inset ring-white/10 placeholder:text-white/30 focus:ring-amber-300/50"
-        aria-label="Veda kelimesi"
+        onChange={(e) => setKelime(e.target.value.slice(0, 200))}
+        maxLength={200}
+        rows={2}
+        placeholder="Son sözün (opsiyonel)"
+        className="w-full resize-none rounded-xl bg-black/20 px-4 py-3 text-base text-white outline-none ring-1 ring-inset ring-white/10 placeholder:text-white/30 focus:ring-amber-300/50"
+        aria-label="Veda mesajı"
       />
 
       <div className="flex gap-2">

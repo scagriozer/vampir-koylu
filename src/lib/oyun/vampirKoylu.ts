@@ -107,7 +107,7 @@ export type Asama =
   | "oylama-sonuc"
   | "bitis";
 
-/** Ölen bir oyuncunun bıraktığı veda mesajı: bir GIF ve isteğe bağlı tek kelime. */
+/** Ölen bir oyuncunun bıraktığı veda mesajı: bir GIF ve isteğe bağlı serbest metin. */
 export interface OyuncuVeda {
   gifUrl: string;
   gifId: string;
@@ -746,7 +746,7 @@ export function oyunReducer(durum: OyunDurumu, aksiyon: OyunAksiyonu): OyunDurum
     }
 
     // — Veda mesajı: ölen oyuncu bir kez daha cihazı devralır, bir GIF (+
-    // isteğe bağlı tek kelime) bırakır. Yalnızca ölü ve henüz sorulmamış bir
+    // isteğe bağlı serbest metin) bırakır. Yalnızca ölü ve henüz sorulmamış bir
     // oyuncu için başlatılabilir; aksi halde no-op (çift dokunuş / bayat aksiyon).
     case "vedaYazmayaBasla": {
       const oyuncu = oyuncuBul(durum.oyuncular, aksiyon.oyuncuId);
@@ -756,7 +756,7 @@ export function oyunReducer(durum: OyunDurumu, aksiyon: OyunAksiyonu): OyunDurum
 
     case "vedaKaydet": {
       if (durum.vedaYazan === null) return durum;
-      const kelime = aksiyon.kelime?.trim().slice(0, 24) || null;
+      const kelime = aksiyon.kelime?.trim().slice(0, 200) || null;
       return {
         ...durum,
         vedaYazan: null,
