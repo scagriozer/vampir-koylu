@@ -410,6 +410,7 @@ export function AgOyunu({ onKapat }: { onKapat: () => void }) {
             durum={durum}
             onHedefSec={(hedefId) => agDispatch({ tip: "geceHedefSec", hedefId })}
             onSirayiTamamla={() => agDispatch({ tip: "geceSirasiniTamamla" })}
+            sayimliBekleme={false}
           />
         ) : (
           <AgBekleme durum={durum} siradaki={geceAktif?.ad ?? "?"} />

@@ -286,6 +286,9 @@ export function VampirKoyluOyun() {
             onAyniMasaylaYeniOyun={() => dispatch({ tip: "ayniMasaylaYeniOyun" })}
             onYenidenBasla={() => dispatch({ tip: "yenidenBasla" })}
             onSkorSifirla={skorTablosunuSifirla}
+            onVedaBaslat={(oyuncuId) => dispatch({ tip: "vedaYazmayaBasla", oyuncuId })}
+            onVedaKaydet={(gifUrl, gifId, kelime) => dispatch({ tip: "vedaKaydet", gifUrl, gifId, kelime })}
+            onVedaAtla={() => dispatch({ tip: "vedaAtla" })}
           />
         ) : (
           <GunEkrani
@@ -295,6 +298,9 @@ export function VampirKoyluOyun() {
             onTartismayiBitir={() => dispatch({ tip: "tartismayiBitir" })}
             onOyVer={(hedefId) => dispatch({ tip: "oyVer", hedefId })}
             onSonucuOnayla={() => dispatch({ tip: "sonucuOnayla" })}
+            onVedaBaslat={(oyuncuId) => dispatch({ tip: "vedaYazmayaBasla", oyuncuId })}
+            onVedaKaydet={(gifUrl, gifId, kelime) => dispatch({ tip: "vedaKaydet", gifUrl, gifId, kelime })}
+            onVedaAtla={() => dispatch({ tip: "vedaAtla" })}
           />
         )}
       </div>

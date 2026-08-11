@@ -30,13 +30,15 @@ jobs:
 
       - name: Statik dosyaları üret
         # Pages, depo adıyla aynı alt yolda yayınlar: https://<kullanıcı>.github.io/<depo>/
-        # SUPABASE_* secret'ları repo Settings → Secrets and variables → Actions'a eklenmeli;
-        # eklenmezse ağ modu derlemede kapalı kalır (bkz. src/lib/ag/supabase.ts), uygulamanın
-        # geri kalanı etkilenmez.
+        # SUPABASE_*/GIPHY_API_KEY secret'ları repo Settings → Secrets and variables →
+        # Actions'a eklenmeli; eklenmezse sırasıyla ağ modu (bkz. src/lib/ag/supabase.ts)
+        # ve veda mesajında GIF araması (bkz. src/lib/oyun/giphy.ts) derlemede kapalı
+        # kalır, uygulamanın geri kalanı etkilenmez.
         env:
           PAGES_BASE_PATH: /${{ github.event.repository.name }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_GIPHY_API_KEY: ${{ secrets.GIPHY_API_KEY }}
         run: npm run build
 
       - name: Jekyll işlemesini kapat

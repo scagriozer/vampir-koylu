@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ROLLER,
   doktorYasakHedef,
@@ -16,7 +16,17 @@ interface GeceEkraniProps {
   durum: OyunDurumu;
   onHedefSec: (hedefId: number) => void;
   onSirayiTamamla: () => void;
+  /**
+   * "Sıra bende" dokunuşuyla gerçek ekran arasına sabit bir bekleme koyar.
+   * Görevi olan oyuncu (hedef seçer) ile olmayan (tek dokunuşla geçer) arasındaki
+   * el değiştirme SÜRESİ farklı olursa, bu fark başlı başına bir sızıntıdır — hızlı
+   * geçen köylüdür, yavaş geçen görev sahibidir. Sabit bekleme bu farkı yok eder.
+   * Ağ üzerinden oyunda cihaz zaten el değiştirmediği için (bkz. AgOyunu) false verilir.
+   */
+  sayimliBekleme?: boolean;
 }
+
+const BEKLEME_SURESI_MS = 3000;
 
 /**
  * Gece, rol çağırarak değil, cihazı koltuk sırasıyla HERKESE gezdirerek işler.
@@ -24,11 +34,18 @@ interface GeceEkraniProps {
  * olmayan köylü de sırasını alır. Böylece masadakiler ekrandan kimin hangi role
  * sahip olduğunu çıkaramaz.
  */
-export function GeceEkrani({ durum, onHedefSec, onSirayiTamamla }: GeceEkraniProps) {
+export function GeceEkrani({ durum, onHedefSec, onSirayiTamamla, sayimliBekleme = true }: GeceEkraniProps) {
   const oyuncu = geceSirasindaki(durum);
   // Bileşen her sırada `key` ile sıfırlanır (bkz. VampirKoyluOyun).
   const [devralindi, setDevralindi] = useState(false);
+  const [beklemeBitti, setBeklemeBitti] = useState(!sayimliBekleme);
   const [gozcuRaporu, setGozcuRaporu] = useState(false);
+
+  useEffect(() => {
+    if (!devralindi || !sayimliBekleme) return;
+    const zamanlayici = setTimeout(() => setBeklemeBitti(true), BEKLEME_SURESI_MS);
+    return () => clearTimeout(zamanlayici);
+  }, [devralindi, sayimliBekleme]);
 
   if (!oyuncu) return null;
 
@@ -52,6 +69,18 @@ export function GeceEkrani({ durum, onHedefSec, onSirayiTamamla }: GeceEkraniPro
         <Buton tamGenislik onClick={() => setDevralindi(true)}>
           👁️ Sıra bende
         </Buton>
+      </div>
+    );
+  }
+
+  // — 2. Sabit bekleme: görev olsun olmasın bu ekran aynı süre kalır, bkz. yukarı —
+  if (!beklemeBitti) {
+    return (
+      <div className="space-y-6">
+        <Baslik ustBaslik={`${durum.gun}. gece`} baslik="Hazırlan…" aciklama="Ekran birazdan açılacak." />
+        <div className="flex justify-center py-10" aria-hidden>
+          <span className="inline-block h-16 w-16 animate-spin rounded-full border-4 border-white/15 border-t-amber-300" />
+        </div>
       </div>
     );
   }

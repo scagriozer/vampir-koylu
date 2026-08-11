@@ -4,6 +4,7 @@ import { ROLLER, type OyunDurumu } from "@/lib/oyun/vampirKoylu";
 import type { SkorTablosu } from "@/lib/oyun/skor";
 import { MasaGorunumu } from "./MasaGorunumu";
 import { Baslik, Buton, Panel } from "./ui";
+import { VedaEkrani, VedaKarti } from "./VedaEkrani";
 
 interface BitisEkraniProps {
   durum: OyunDurumu;
@@ -11,6 +12,10 @@ interface BitisEkraniProps {
   onAyniMasaylaYeniOyun: () => void;
   onYenidenBasla: () => void;
   onSkorSifirla: () => void;
+  /** Bkz. GunEkrani — yalnızca sağlanırsa veda akışı etkinleşir (ağ modunda verilmez). */
+  onVedaBaslat?: (oyuncuId: number) => void;
+  onVedaKaydet?: (gifUrl: string, gifId: string, kelime: string | null) => void;
+  onVedaAtla?: () => void;
 }
 
 export function BitisEkrani({
@@ -19,8 +24,21 @@ export function BitisEkrani({
   onAyniMasaylaYeniOyun,
   onYenidenBasla,
   onSkorSifirla,
+  onVedaBaslat,
+  onVedaKaydet,
+  onVedaAtla,
 }: BitisEkraniProps) {
   const kazanan = durum.kazanan;
+
+  // Oyunu bitiren son gece kurbanı, şafak ekranını hiç görmeden buraya
+  // düşebilir (bkz. vampirKoylu.ts safagiGec — köy uyanmadan zafer ilan
+  // edilir); veda hakkını kaçırmasın diye burada bir kez daha sorulur.
+  if (durum.vedaYazan !== null && onVedaKaydet && onVedaAtla) {
+    const vedaYazan = durum.oyuncular.find((o) => o.id === durum.vedaYazan);
+    if (vedaYazan) return <VedaEkrani oyuncu={vedaYazan} onKaydet={onVedaKaydet} onAtla={onVedaAtla} />;
+  }
+  const sorulmamisOlen = durum.oyuncular.find((o) => !o.hayatta && !o.vedaSorulduMu);
+  const vedaBirakanlar = durum.oyuncular.filter((o) => o.veda);
   // Soytarı yalnızca asılarak kazanır; kazanan Soytarı = infazla ölen soytarı.
   const soytariOyuncu = durum.oyuncular.find(
     (o) => o.rol === "soytari" && o.olumNedeni === "infaz",
@@ -129,6 +147,33 @@ export function BitisEkrani({
             ))}
         </ul>
       </Panel>
+
+      {(vedaBirakanlar.length > 0 || (sorulmamisOlen && onVedaBaslat)) && (
+        <Panel>
+          <p className="mb-3 text-xs font-bold uppercase tracking-widest text-white/50">Mezarlık</p>
+          <div className="space-y-3">
+            {vedaBirakanlar.map(
+              (o) =>
+                o.veda && (
+                  <div key={o.id} className="space-y-1.5">
+                    <p className="text-center text-xs font-semibold text-white/50">{o.ad}</p>
+                    <VedaKarti veda={o.veda} />
+                  </div>
+                ),
+            )}
+          </div>
+          {sorulmamisOlen && onVedaBaslat && (
+            <Buton
+              tamGenislik
+              ton="ikincil"
+              className="mt-3"
+              onClick={() => onVedaBaslat(sorulmamisOlen.id)}
+            >
+              💌 {sorulmamisOlen.ad} için veda mesajı iste
+            </Buton>
+          )}
+        </Panel>
+      )}
 
       <Panel>
         <p className="mb-2 text-xs font-bold uppercase tracking-widest text-white/50">Olay günlüğü</p>

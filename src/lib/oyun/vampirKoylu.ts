@@ -107,6 +107,13 @@ export type Asama =
   | "oylama-sonuc"
   | "bitis";
 
+/** Ölen bir oyuncunun bıraktığı veda mesajı: bir GIF ve isteğe bağlı tek kelime. */
+export interface OyuncuVeda {
+  gifUrl: string;
+  gifId: string;
+  kelime: string | null;
+}
+
 export interface Oyuncu {
   id: number;
   ad: string;
@@ -116,6 +123,10 @@ export interface Oyuncu {
   olumGunu: number | null;
   /** İsteğe bağlı, istemcide kare kırpılmış küçük JPEG data URL'i; yoksa null. */
   foto: string | null;
+  /** Öldükten sonra bıraktığı veda mesajı; yazmadıysa/atladıysa null. */
+  veda: OyuncuVeda | null;
+  /** Veda mesajı bir kez soruldu mu (yazdı ya da atladı fark etmez) — tekrar sorulmasın diye. */
+  vedaSorulduMu: boolean;
 }
 
 export interface Ayarlar {
@@ -192,6 +203,9 @@ export interface OyunDurumu {
   /** Sırası gelen oyuncunun henüz onaylanmamış seçimi */
   buSiradakiSecim: number | null;
 
+  /** Cihaz şu an hangi ölü oyuncuda; veda mesajı yazıyor. Yazmıyorsa null. */
+  vedaYazan: number | null;
+
   // — şafak —
   /** Gece sonuçları uygulanıp köye duyuruldu mu? (yenilemeye karşı korumalı) */
   safakAcildi: boolean;
@@ -216,7 +230,7 @@ export interface OylamaSonucu {
   cekimser: number;
 }
 
-export const OYUN_SURUMU = 5;
+export const OYUN_SURUMU = 6;
 export const MIN_OYUNCU = 4;
 export const MAKS_OYUNCU = 12;
 
@@ -368,6 +382,7 @@ function bosDurum(ayarlar: Ayarlar): OyunDurumu {
     gozcuIncelemeleri: {},
     sonKorunanlar: {},
     buSiradakiSecim: null,
+    vedaYazan: null,
     safakAcildi: false,
     safakOlen: null,
     oySira: 0,
@@ -403,6 +418,8 @@ export function oyunculariOlustur(
     olumNedeni: null,
     olumGunu: null,
     foto: fotolar?.[i] ?? null,
+    veda: null,
+    vedaSorulduMu: false,
   }));
 }
 
@@ -428,6 +445,9 @@ export type OyunAksiyonu =
   | { tip: "oyVer"; hedefId: number | null }
   | { tip: "oylamayiSonuclandir" }
   | { tip: "sonucuOnayla" }
+  | { tip: "vedaYazmayaBasla"; oyuncuId: number }
+  | { tip: "vedaKaydet"; gifUrl: string; gifId: string; kelime: string | null }
+  | { tip: "vedaAtla" }
   | { tip: "ayniMasaylaYeniOyun"; rastgele?: () => number }
   | { tip: "ayarGuncelle"; ayarlar: Partial<Ayarlar> }
   | { tip: "yenidenBasla" }
@@ -722,6 +742,40 @@ export function oyunReducer(durum: OyunDurumu, aksiyon: OyunAksiyonu): OyunDurum
         oySira: 0,
         oylamaSonucu: null,
         gunluk,
+      };
+    }
+
+    // — Veda mesajı: ölen oyuncu bir kez daha cihazı devralır, bir GIF (+
+    // isteğe bağlı tek kelime) bırakır. Yalnızca ölü ve henüz sorulmamış bir
+    // oyuncu için başlatılabilir; aksi halde no-op (çift dokunuş / bayat aksiyon).
+    case "vedaYazmayaBasla": {
+      const oyuncu = oyuncuBul(durum.oyuncular, aksiyon.oyuncuId);
+      if (!oyuncu || oyuncu.hayatta || oyuncu.vedaSorulduMu) return durum;
+      return { ...durum, vedaYazan: aksiyon.oyuncuId };
+    }
+
+    case "vedaKaydet": {
+      if (durum.vedaYazan === null) return durum;
+      const kelime = aksiyon.kelime?.trim().slice(0, 24) || null;
+      return {
+        ...durum,
+        vedaYazan: null,
+        oyuncular: durum.oyuncular.map((o) =>
+          o.id === durum.vedaYazan
+            ? { ...o, veda: { gifUrl: aksiyon.gifUrl, gifId: aksiyon.gifId, kelime }, vedaSorulduMu: true }
+            : o,
+        ),
+      };
+    }
+
+    case "vedaAtla": {
+      if (durum.vedaYazan === null) return durum;
+      return {
+        ...durum,
+        vedaYazan: null,
+        oyuncular: durum.oyuncular.map((o) =>
+          o.id === durum.vedaYazan ? { ...o, vedaSorulduMu: true } : o,
+        ),
       };
     }
 

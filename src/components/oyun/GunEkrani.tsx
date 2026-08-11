@@ -10,6 +10,7 @@ import {
 import { sesCal, titret } from "@/lib/oyun/sesler";
 import { MasaGorunumu } from "./MasaGorunumu";
 import { Baslik, Buton, Panel } from "./ui";
+import { VedaEkrani, VedaKarti } from "./VedaEkrani";
 
 interface GunEkraniProps {
   durum: OyunDurumu;
@@ -18,6 +19,14 @@ interface GunEkraniProps {
   onTartismayiBitir: () => void;
   onOyVer: (hedefId: number | null) => void;
   onSonucuOnayla: () => void;
+  /**
+   * Veda akışı opsiyoneldir: yalnızca sağlanırsa "veda mesajı iste" butonu
+   * gösterilir. Ağ üzerinden oyunda (herkesin aynı anda gördüğü ekranda,
+   * tek bir "sırası gelen" kişi olmadan) bu üçü verilmez, buton çıkmaz.
+   */
+  onVedaBaslat?: (oyuncuId: number) => void;
+  onVedaKaydet?: (gifUrl: string, gifId: string, kelime: string | null) => void;
+  onVedaAtla?: () => void;
 }
 
 export function GunEkrani(props: GunEkraniProps) {
@@ -31,7 +40,14 @@ export function GunEkrani(props: GunEkraniProps) {
 }
 
 /** Gece bitti: önce herkes uyanır, sonra sonuç açıklanır. */
-function SafakBolumu({ durum, onSafagiGec, onTartismayaGec }: GunEkraniProps) {
+function SafakBolumu({
+  durum,
+  onSafagiGec,
+  onTartismayaGec,
+  onVedaBaslat,
+  onVedaKaydet,
+  onVedaAtla,
+}: GunEkraniProps) {
   if (!durum.safakAcildi) {
     return (
       <div className="space-y-6">
@@ -49,6 +65,12 @@ function SafakBolumu({ durum, onSafagiGec, onTartismayaGec }: GunEkraniProps) {
   }
 
   const olen = oyuncuBul(durum.oyuncular, durum.safakOlen);
+
+  // Cihaz şu an ölen oyuncuda, veda mesajı yazıyor: masaya döndürene kadar
+  // tüm ekranı bu devralır (aynı gizlilik kapısı gece devrindeki gibi).
+  if (olen && onVedaKaydet && onVedaAtla && durum.vedaYazan === olen.id) {
+    return <VedaEkrani oyuncu={olen} onKaydet={onVedaKaydet} onAtla={onVedaAtla} />;
+  }
 
   return (
     <div className="space-y-5">
@@ -75,6 +97,15 @@ function SafakBolumu({ durum, onSafagiGec, onTartismayaGec }: GunEkraniProps) {
           </div>
         }
       />
+
+      {olen?.veda && <VedaKarti veda={olen.veda} />}
+
+      {olen && !olen.vedaSorulduMu && onVedaBaslat && (
+        <Buton tamGenislik ton="ikincil" onClick={() => onVedaBaslat(olen.id)}>
+          💌 Veda mesajını iste
+        </Buton>
+      )}
+
       <Buton tamGenislik onClick={onTartismayaGec}>
         🗣️ Tartışmayı başlat
       </Buton>
@@ -268,12 +299,22 @@ function OylamaBolumu({ durum, onOyVer }: GunEkraniProps) {
   );
 }
 
-function OylamaSonucBolumu({ durum, onSonucuOnayla }: GunEkraniProps) {
+function OylamaSonucBolumu({
+  durum,
+  onSonucuOnayla,
+  onVedaBaslat,
+  onVedaKaydet,
+  onVedaAtla,
+}: GunEkraniProps) {
   const sonuc = durum.oylamaSonucu;
   const [acildi, setAcildi] = useState(false);
   if (!sonuc) return null;
 
   const hedef = oyuncuBul(durum.oyuncular, sonuc.infazEdilen);
+
+  if (hedef && onVedaKaydet && onVedaAtla && durum.vedaYazan === hedef.id) {
+    return <VedaEkrani oyuncu={hedef} onKaydet={onVedaKaydet} onAtla={onVedaAtla} />;
+  }
 
   if (!acildi) {
     return (
@@ -333,6 +374,14 @@ function OylamaSonucBolumu({ durum, onSonucuOnayla }: GunEkraniProps) {
           )}
         </ul>
       </Panel>
+
+      {hedef?.veda && <VedaKarti veda={hedef.veda} />}
+
+      {hedef && !hedef.vedaSorulduMu && onVedaBaslat && (
+        <Buton tamGenislik ton="ikincil" onClick={() => onVedaBaslat(hedef.id)}>
+          💌 Veda mesajını iste
+        </Buton>
+      )}
 
       {/* Sürgün oyunu bitirebilir (Soytarı, teslim kuralı); "geceye geç" deme. */}
       <Buton tamGenislik onClick={onSonucuOnayla}>
