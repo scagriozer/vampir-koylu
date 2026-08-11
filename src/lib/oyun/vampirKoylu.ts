@@ -247,6 +247,26 @@ export function varsayilanDagilim(oyuncuSayisi: number): Record<RolId, number> {
   return { vampir, doktor, gozcu, koylu, soytari: 0, sagkalan: 0 };
 }
 
+/**
+ * Oyuncu sayısı değiştiğinde çağrılır: çekirdek dörtlüyü (vampir/doktor/gözcü/
+ * köylü) yeni sayıya göre ideal orana yeniden hesaplar, ama masanın elle açtığı
+ * tarafsız rolleri (soytarı/sağ kalan) SIFIRLAMAZ — bunlar `varsayilanDagilim`'de
+ * hiç yer almadığından, eskiden düz `varsayilanDagilim(yeniSayi)` ile resetlemek
+ * kullanıcının az önce eklediği bir soytarıyı/sağ kalanı habersizce 0'a
+ * düşürüyordu. Özel roller çekirdek için asgari yeri (vampir+doktor+gözcü ≥ 3)
+ * bile bırakmayacak kadar büyükse (çok küçük masa), tamamen varsayılana dönülür.
+ */
+export function dagilimiOyuncuSayisinaGoreAyarla(
+  mevcut: Record<RolId, number>,
+  yeniSayi: number,
+): Record<RolId, number> {
+  const ozelToplam = mevcut.soytari + mevcut.sagkalan;
+  const cekirdekIcin = yeniSayi - ozelToplam;
+  if (cekirdekIcin < 3) return varsayilanDagilim(yeniSayi);
+  const cekirdek = varsayilanDagilim(cekirdekIcin);
+  return { ...cekirdek, soytari: mevcut.soytari, sagkalan: mevcut.sagkalan };
+}
+
 export function dagilimToplami(dagilim: Record<RolId, number>): number {
   return (Object.values(dagilim) as number[]).reduce((a, b) => a + b, 0);
 }

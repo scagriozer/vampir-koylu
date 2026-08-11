@@ -8,6 +8,7 @@ import {
   ROLLER,
   VARSAYILAN_AYARLAR,
   dagilimToplami,
+  dagilimiOyuncuSayisinaGoreAyarla,
   varsayilanDagilim,
   type Ayarlar,
   type RolId,
@@ -71,7 +72,7 @@ export function KurulumEkrani({ onBasla }: KurulumEkraniProps) {
       if (sinirli <= onceki.length) return onceki.slice(0, sinirli);
       return [...onceki, ...Array.from({ length: sinirli - onceki.length }, () => null)];
     });
-    setDagilim(varsayilanDagilim(sinirli));
+    setDagilim((onceki) => dagilimiOyuncuSayisinaGoreAyarla(onceki, sinirli));
   }
 
   function rolAdediniDegistir(rol: RolId, fark: number) {
