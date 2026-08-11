@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import { sesleriEtkinlestir } from "@/lib/oyun/sesler";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
@@ -22,31 +22,37 @@ interface ButonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   tamGenislik?: boolean;
 }
 
+// Aşama atlama koruması: ekranlar arası butonlar çoğu zaman aynı konumda
+// olduğundan, çift/hızlı dokunuş bir önceki ekrana basılan parmağın ikinci
+// temasını yeni ekranın butonuna iletebiliyor (ör. "Avımı seçtim" dokunuşu
+// sıradaki oyuncunun "Sıra bende" butonuna sızıp o oyuncunun ekranını
+// istemsizce açabiliyor). Buton ekrana geldikten sonraki kısa süre boyunca
+// GERÇEKTEN disabled tutulur — yalnızca tıklama olayını JS içinde yok
+// saymak yerine, tarayıcı bu süre boyunca dokunuşu hiç butona iletmez.
+const KORUMA_SURESI_MS = 500;
+
 export function Buton({
   ton = "birincil",
   tamGenislik = false,
   className = "",
   children,
   onClick,
+  disabled,
   ...props
 }: ButonProps) {
-  // Aşama atlama koruması: ekranlar arası butonlar çoğu zaman aynı konumda
-  // olduğundan, çift/hızlı dokunuş bir önceki ekrana basılan parmağın ikinci
-  // temasını yeni ekranın butonuna iletebiliyor (ör. "Sıra bende" → "Kapat").
-  // Buton ekrana geldikten sonraki ilk anlarda gelen dokunuşlar yok sayılır.
-  const hazirZamani = useRef(0);
+  const [korumaAktif, setKorumaAktif] = useState(true);
   useEffect(() => {
-    hazirZamani.current = Date.now() + 350;
+    const zamanlayici = setTimeout(() => setKorumaAktif(false), KORUMA_SURESI_MS);
+    return () => clearTimeout(zamanlayici);
   }, []);
 
   return (
     <button
       {...props}
+      disabled={disabled || korumaAktif}
       onClick={(e) => {
-        // iOS ses bağlamı yalnızca dokunuş içinde açılabilir; koruma dokunuşu
-        // yutsa bile bağlamı uyandırmak serbest.
+        // iOS ses bağlamı yalnızca dokunuş içinde açılabilir.
         sesleriEtkinlestir();
-        if (Date.now() < hazirZamani.current) return;
         onClick?.(e);
       }}
       // min-h-11: iOS'ta önerilen 44pt dokunma hedefi.
