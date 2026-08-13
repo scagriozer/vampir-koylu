@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import {
+  KUTSAMA_SECIMI,
   ROLLER,
+  TETIKTE_OL_SECIMI,
   doktorYasakHedef,
   hayattaOlanlar,
   moderatorGeceSirasindaki,
@@ -60,6 +62,65 @@ export function ModeratorGeceEkrani({ durum, onHedefSec, onSirayiTamamla }: Mode
         <Buton tamGenislik onClick={onSirayiTamamla}>
           ➡️ Sıradaki role geç
         </Buton>
+      </div>
+    );
+  }
+
+  // — Kutsanmış/Veteran: hedef değil KARAR sorulur — moderatör grubun cevabını girer —
+  if (rolId === "kutsanmis") {
+    return (
+      <div className="space-y-6">
+        <Baslik
+          ustBaslik={`${durum.gun}. gece · Moderatör`}
+          baslik="Kutsanmış bu geceyi kutsayacak mı?"
+          aciklama={`${grup.map((o) => o.ad).join(", ")} bu hakkı kullanmak isteyip istemediğini sessizce sana söylesin.`}
+        />
+        <div className="flex justify-center py-8 text-7xl" aria-hidden>
+          🙏
+        </div>
+        <div className="space-y-2">
+          <Buton
+            tamGenislik
+            onClick={() => {
+              onHedefSec(KUTSAMA_SECIMI);
+              onSirayiTamamla();
+            }}
+          >
+            🙏 Evet, geceyi kutsadılar
+          </Buton>
+          <Buton tamGenislik ton="ikincil" onClick={onSirayiTamamla}>
+            Hayır, pas geçtiler
+          </Buton>
+        </div>
+      </div>
+    );
+  }
+
+  if (rolId === "veteran") {
+    return (
+      <div className="space-y-6">
+        <Baslik
+          ustBaslik={`${durum.gun}. gece · Moderatör`}
+          baslik="Veteran bu gece tetikte mi?"
+          aciklama={`${grup.map((o) => o.ad).join(", ")} tetikte olmak isteyip istemediğini sessizce sana söylesin.`}
+        />
+        <div className="flex justify-center py-8 text-7xl" aria-hidden>
+          🎖️
+        </div>
+        <div className="space-y-2">
+          <Buton
+            tamGenislik
+            onClick={() => {
+              onHedefSec(TETIKTE_OL_SECIMI);
+              onSirayiTamamla();
+            }}
+          >
+            🚨 Evet, tetikteler
+          </Buton>
+          <Buton tamGenislik ton="ikincil" onClick={onSirayiTamamla}>
+            Hayır, pas geçtiler
+          </Buton>
+        </div>
       </div>
     );
   }

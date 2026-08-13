@@ -16,7 +16,16 @@ import {
 import { fotografiKareJpegYap } from "@/lib/oyun/foto";
 import { Baslik, Buton, Panel } from "./ui";
 
-const ROL_SIRASI: RolId[] = ["vampir", "doktor", "gozcu", "koylu", "soytari", "sagkalan"];
+const ROL_SIRASI: RolId[] = [
+  "vampir",
+  "doktor",
+  "gozcu",
+  "koylu",
+  "kutsanmis",
+  "veteran",
+  "soytari",
+  "sagkalan",
+];
 const VARSAYILAN_OYUNCU = 6;
 
 interface KurulumEkraniProps {
@@ -75,7 +84,16 @@ export function KurulumEkrani({ onBasla }: KurulumEkraniProps) {
     setDagilim((onceki) => dagilimiOyuncuSayisinaGoreAyarla(onceki, sinirli));
   }
 
+  // Mobil tarayıcılarda bazen tek dokunuş için iki "click" olayı ateşlenebiliyor
+  // (ör. dokunuş + gecikmiş fare eşdeğeri) — bu, "2 → 0" gibi bir adımın atlandığı
+  // izlenimi veriyordu. Aynı role çok kısa aralıkla gelen ikinci tetiklemeyi kilitle.
+  const rolKilitliRef = useRef<Partial<Record<RolId, boolean>>>({});
   function rolAdediniDegistir(rol: RolId, fark: number) {
+    if (rolKilitliRef.current[rol]) return;
+    rolKilitliRef.current[rol] = true;
+    setTimeout(() => {
+      rolKilitliRef.current[rol] = false;
+    }, 250);
     setDagilim((onceki) => ({ ...onceki, [rol]: Math.max(0, onceki[rol] + fark) }));
   }
 

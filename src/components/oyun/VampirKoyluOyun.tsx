@@ -301,6 +301,7 @@ export function VampirKoyluOyun() {
             onVedaBaslat={(oyuncuId) => dispatch({ tip: "vedaYazmayaBasla", oyuncuId })}
             onVedaKaydet={(gifUrl, gifId, kelime) => dispatch({ tip: "vedaKaydet", gifUrl, gifId, kelime })}
             onVedaAtla={() => dispatch({ tip: "vedaAtla" })}
+            onTekrarBasla={() => dispatch({ tip: "ayniMasaylaYeniOyun" })}
           />
         )}
       </div>

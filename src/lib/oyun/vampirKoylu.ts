@@ -9,7 +9,15 @@
  * edilebilir ve sayfa yenilense bile oyun kaldığı yerden devam eder.
  */
 
-export type RolId = "vampir" | "doktor" | "gozcu" | "koylu" | "soytari" | "sagkalan";
+export type RolId =
+  | "vampir"
+  | "doktor"
+  | "gozcu"
+  | "koylu"
+  | "soytari"
+  | "sagkalan"
+  | "kutsanmis"
+  | "veteran";
 export type Takim = "vampir" | "koy" | "tarafsiz";
 /** Oyunu kimin kazandığı: iki takımdan biri ya da kendini astırmayı başaran Soytarı. */
 export type Kazanan = "vampir" | "koy" | "soytari";
@@ -26,6 +34,9 @@ export interface RolTanim {
   /** Kart yüzü için degrade renkler */
   renk: [string, string];
 }
+
+/** Veteran'ın oyun boyunca kaç kez "tetikte" olabileceği (bkz. ROLLER.veteran). */
+export const VETERAN_HAK_SAYISI = 2;
 
 export const ROLLER: Record<RolId, RolTanim> = {
   vampir: {
@@ -90,9 +101,31 @@ export const ROLLER: Record<RolId, RolTanim> = {
     emoji: "🎒",
     ozet: "Tek derdi hayatta kalmak.",
     gorev:
-      "Kimsenin takımında değilsin. Oyun bittiğinde hâlâ hayattaysan, kazanan kim olursa olsun sen de kazanırsın. Dikkat çekme, kimseye tehdit olma, sağ kal.",
+      "Kimsenin takımında değilsin. Oyun bittiğinde hâlâ hayattaysan, kazanan kim olursa olsun sen de kazanırsın. Dikkat çekme, kimseye tehdit olma, sağ kal. Ayrıca oyun boyunca BİR KEZ: ölümüne sebep olacak bir saldırıdan otomatik olarak sağ çıkarsın.",
     geceGorevi: false,
     renk: ["#155e75", "#07242c"],
+  },
+  kutsanmis: {
+    id: "kutsanmis",
+    ad: "Kutsanmış",
+    takim: "koy",
+    emoji: "🙏",
+    ozet: "Oyun boyunca bir kez tüm geceyi güvenli kılar.",
+    gorev:
+      "Oyun boyunca yalnızca BİR KEZ, sırası geldiğinde geceyi kutsayabilirsin: o gece vampir saldırısı işlemez, kimse ölmez. Hakkını ne zaman kullanacağına sen karar ver — her gece kullanmak zorunda değilsin, sakla ve doğru anı bekle.",
+    geceGorevi: true,
+    renk: ["#a16207", "#2e2205"],
+  },
+  veteran: {
+    id: "veteran",
+    ad: "Veteran",
+    takim: "koy",
+    emoji: "🎖️",
+    ozet: "Tetikteyken kendini avlayan vampiri öldürür.",
+    gorev:
+      `Sınırlı sayıda (oyun boyunca ${VETERAN_HAK_SAYISI} kez) "tetikte" olabilirsin. Tetikteyken bir vampir seni avlarsa sen hayatta kalırsın ve SANA SALDIRAN vampir ölür. Tetikte değilken normal bir köylüden farksızsın; hakkını akıllıca sakla.`,
+    geceGorevi: true,
+    renk: ["#374151", "#0f1115"],
   },
 };
 
@@ -119,7 +152,7 @@ export interface Oyuncu {
   ad: string;
   rol: RolId;
   hayatta: boolean;
-  olumNedeni: "vampir" | "infaz" | null;
+  olumNedeni: "vampir" | "infaz" | "veteran" | null;
   olumGunu: number | null;
   /** İsteğe bağlı, istemcide kare kırpılmış küçük JPEG data URL'i; yoksa null. */
   foto: string | null;
@@ -127,6 +160,12 @@ export interface Oyuncu {
   veda: OyuncuVeda | null;
   /** Veda mesajı bir kez soruldu mu (yazdı ya da atladı fark etmez) — tekrar sorulmasın diye. */
   vedaSorulduMu: boolean;
+  /** Kutsanmış: oyun boyunca bir kez kullanılabilen "geceyi kutsa" hakkı kullanıldı mı? */
+  kutsamaKullanildiMi: boolean;
+  /** Veteran: kalan "tetikte ol" hakkı (bkz. VETERAN_HAK_SAYISI). Diğer roller için anlamsız, dokunulmaz. */
+  veteranHakKalan: number;
+  /** Sağ Kalan: oyun boyunca bir kez kullanılabilen "kendini kurtar" hakkı kullanıldı mı? */
+  ekstraCanKullanildiMi: boolean;
 }
 
 export interface Ayarlar {
@@ -202,6 +241,10 @@ export interface OyunDurumu {
   sonKorunanlar: Record<number, number>;
   /** Sırası gelen oyuncunun henüz onaylanmamış seçimi */
   buSiradakiSecim: number | null;
+  /** Bu gece kutsandı mı? (Kutsanmış hakkını kullandıysa) — şafakta vampir saldırısı tamamen iptal olur. */
+  geceKutsandiMi: boolean;
+  /** Bu gece "tetikte" olan Veteran'ın id'si; yoksa null. */
+  nobetteOlanVeteran: number | null;
 
   /** Cihaz şu an hangi ölü oyuncuda; veda mesajı yazıyor. Yazmıyorsa null. */
   vedaYazan: number | null;
@@ -230,7 +273,7 @@ export interface OylamaSonucu {
   cekimser: number;
 }
 
-export const OYUN_SURUMU = 6;
+export const OYUN_SURUMU = 7;
 export const MIN_OYUNCU = 4;
 export const MAKS_OYUNCU = 12;
 
@@ -243,28 +286,35 @@ export function varsayilanDagilim(oyuncuSayisi: number): Record<RolId, number> {
   const doktor = 1;
   const gozcu = 1;
   const koylu = Math.max(0, oyuncuSayisi - vampir - doktor - gozcu);
-  // Tarafsız roller varsayılanda kapalı; masa isterse kurulumdan ekler.
-  return { vampir, doktor, gozcu, koylu, soytari: 0, sagkalan: 0 };
+  // Tarafsız/özel roller varsayılanda kapalı; masa isterse kurulumdan ekler.
+  return { vampir, doktor, gozcu, koylu, soytari: 0, sagkalan: 0, kutsanmis: 0, veteran: 0 };
 }
 
 /**
  * Oyuncu sayısı değiştiğinde çağrılır: çekirdek dörtlüyü (vampir/doktor/gözcü/
  * köylü) yeni sayıya göre ideal orana yeniden hesaplar, ama masanın elle açtığı
- * tarafsız rolleri (soytarı/sağ kalan) SIFIRLAMAZ — bunlar `varsayilanDagilim`'de
- * hiç yer almadığından, eskiden düz `varsayilanDagilim(yeniSayi)` ile resetlemek
- * kullanıcının az önce eklediği bir soytarıyı/sağ kalanı habersizce 0'a
- * düşürüyordu. Özel roller çekirdek için asgari yeri (vampir+doktor+gözcü ≥ 3)
- * bile bırakmayacak kadar büyükse (çok küçük masa), tamamen varsayılana dönülür.
+ * özel rolleri (soytarı/sağ kalan/kutsanmış/veteran) SIFIRLAMAZ — bunlar
+ * `varsayilanDagilim`'de hiç yer almadığından, eskiden düz
+ * `varsayilanDagilim(yeniSayi)` ile resetlemek kullanıcının az önce eklediği
+ * bir soytarıyı/sağ kalanı habersizce 0'a düşürüyordu. Özel roller çekirdek
+ * için asgari yeri (vampir+doktor+gözcü ≥ 3) bile bırakmayacak kadar büyükse
+ * (çok küçük masa), tamamen varsayılana dönülür.
  */
 export function dagilimiOyuncuSayisinaGoreAyarla(
   mevcut: Record<RolId, number>,
   yeniSayi: number,
 ): Record<RolId, number> {
-  const ozelToplam = mevcut.soytari + mevcut.sagkalan;
+  const ozelToplam = mevcut.soytari + mevcut.sagkalan + mevcut.kutsanmis + mevcut.veteran;
   const cekirdekIcin = yeniSayi - ozelToplam;
   if (cekirdekIcin < 3) return varsayilanDagilim(yeniSayi);
   const cekirdek = varsayilanDagilim(cekirdekIcin);
-  return { ...cekirdek, soytari: mevcut.soytari, sagkalan: mevcut.sagkalan };
+  return {
+    ...cekirdek,
+    soytari: mevcut.soytari,
+    sagkalan: mevcut.sagkalan,
+    kutsanmis: mevcut.kutsanmis,
+    veteran: mevcut.veteran,
+  };
 }
 
 export function dagilimToplami(dagilim: Record<RolId, number>): number {
@@ -325,17 +375,22 @@ export function kazananKontrol(oyuncular: Oyuncu[]): Kazanan | null {
 }
 
 /**
- * Gecenin sonucu kaçınılmaz mı? Doktor hayatta değilse ve vampir saldırısı
- * sayıyı eşitliğe getirecekse, geceyi oynamak formaliteden ibarettir: oyun
- * geceye girmeden vampir zaferiyle biter (masada "zaten belliydi" gecesi
- * yaşanmasın diye).
+ * Gecenin sonucu kaçınılmaz mı? Kurtarma imkanı (doktor ya da hakkını henüz
+ * kullanmamış Kutsanmış) yoksa ve vampir saldırısı sayıyı eşitliğe getirecekse,
+ * geceyi oynamak formaliteden ibarettir: oyun geceye girmeden vampir zaferiyle
+ * biter (masada "zaten belliydi" gecesi yaşanmasın diye). Veteran/Sağ Kalan
+ * bilerek hesaba katılmaz: onların koruması yalnızca KENDİLERİ hedef olursa
+ * işler, vampirler başka birini seçerse hiçbir faydası olmaz — bu yüzden
+ * "kaçınılmazlığı" genel olarak bozmazlar.
  */
 export function koyKurtarilamaz(oyuncular: Oyuncu[]): boolean {
   const hayatta = hayattaOlanlar(oyuncular);
   const vampirler = hayatta.filter((o) => ROLLER[o.rol].takim === "vampir").length;
   const digerleri = hayatta.length - vampirler;
-  const doktorVar = hayatta.some((o) => o.rol === "doktor");
-  return vampirler > 0 && !doktorVar && vampirler >= digerleri - 1;
+  const kurtarmaIhtimaliVar =
+    hayatta.some((o) => o.rol === "doktor") ||
+    hayatta.some((o) => o.rol === "kutsanmis" && !o.kutsamaKullanildiMi);
+  return vampirler > 0 && !kurtarmaIhtimaliVar && vampirler >= digerleri - 1;
 }
 
 /** Gece sırasında cihazı elinde tutan oyuncu (hayatta olanlar, koltuk sırasıyla). */
@@ -353,11 +408,11 @@ export function doktorYasakHedef(durum: OyunDurumu, doktorId: number): number | 
  * Moderatörlü oyunda gece, koltuk sırası değil ROL sırasıyla işler: moderatör
  * zaten herkesin rolünü bildiği için (bkz. Kadro ekranı) gizlemeye gerek
  * yoktur — "vampirler uyansın" der, oyuncuların işaretiyle hedefi tek
- * ekrandan girer. Sırayla vampir → doktor → gözcü, yalnızca hayatta biri
- * varsa çağrılır. Vampir en az bir kişi hayattayken (yani oyun sürerken)
- * her zaman listede olduğundan bu dizi asla boş dönmez.
+ * ekrandan girer. Sırayla vampir → doktor → gözcü → kutsanmış → veteran,
+ * yalnızca hayatta biri varsa çağrılır. Vampir en az bir kişi hayattayken
+ * (yani oyun sürerken) her zaman listede olduğundan bu dizi asla boş dönmez.
  */
-const MODERATOR_GECE_SIRASI: RolId[] = ["vampir", "doktor", "gozcu"];
+const MODERATOR_GECE_SIRASI: RolId[] = ["vampir", "doktor", "gozcu", "kutsanmis", "veteran"];
 
 export function moderatorGeceSirasi(oyuncular: Oyuncu[]): RolId[] {
   return MODERATOR_GECE_SIRASI.filter((rol) => rolSayisi(oyuncular, rol) > 0);
@@ -386,6 +441,16 @@ export function vampirKurbani(
   return basaBas[Math.floor(rastgele() * basaBas.length)];
 }
 
+/**
+ * Kutsanmış/Veteran'ın gece turu bir KİŞİ değil bir KARAR seçer (kutsa/tetikte
+ * ol ya da pas geç). Bu ikisi de mevcut `geceHedefSec`/`geceSirasiniTamamla`
+ * akışını (buSiradakiSecim) yeniden kullanır — gerçek oyuncu id'leri her zaman
+ * ≥ 0 olduğundan, negatif değerler güvenle "özel karar" sentinel'i olarak
+ * kullanılabilir; yeni bir aksiyon tipi gerekmez.
+ */
+export const KUTSAMA_SECIMI = -1;
+export const TETIKTE_OL_SECIMI = -2;
+
 function bosDurum(ayarlar: Ayarlar): OyunDurumu {
   return {
     surum: OYUN_SURUMU,
@@ -402,6 +467,8 @@ function bosDurum(ayarlar: Ayarlar): OyunDurumu {
     gozcuIncelemeleri: {},
     sonKorunanlar: {},
     buSiradakiSecim: null,
+    geceKutsandiMi: false,
+    nobetteOlanVeteran: null,
     vedaYazan: null,
     safakAcildi: false,
     safakOlen: null,
@@ -440,6 +507,9 @@ export function oyunculariOlustur(
     foto: fotolar?.[i] ?? null,
     veda: null,
     vedaSorulduMu: false,
+    kutsamaKullanildiMi: false,
+    veteranHakKalan: VETERAN_HAK_SAYISI,
+    ekstraCanKullanildiMi: false,
   }));
 }
 
@@ -485,23 +555,66 @@ function geceSifirla(): Partial<OyunDurumu> {
     korunanlar: [],
     gozcuIncelemeleri: {},
     buSiradakiSecim: null,
+    geceKutsandiMi: false,
+    nobetteOlanVeteran: null,
     safakAcildi: false,
     safakOlen: null,
   };
 }
 
-/** Şafak sökerken gece seçimlerini uygular, ölen varsa döndürür. */
+/** Şafakta hangi özel mekanik devreye girdi — mesaj metni bunu ayırt eder. */
+type GeceOzelDurum = "kutsanmis" | "veteranOldu" | "doktorKurtardi" | "sagkalanKurtuldu" | null;
+
+/**
+ * Şafak sökerken gece seçimlerini uygular, ölen varsa döndürür. Sıra önemli:
+ * 1. Kutsanmış bu geceyi kutsadıysa HİÇBİR ŞEY işlemez, gece dokunulmadan biter.
+ * 2. Vampirlerin hedefi tetikteki bir Veteran'sa, Veteran hayatta kalır ve
+ *    SALDIRAN VAMPİR ölür (klasik "Veteran" mekaniğinin basitleştirilmiş hali:
+ *    yalnızca saldırgan ölür, doktor/gözcü gibi "ziyaretçilerin" de ölmesi gibi
+ *    daha karmaşık kurallar bu motorun "gecede tek ölüm" varsayımını bozacağı
+ *    için eklenmedi).
+ * 3. Doktor koruması (mevcut davranış, değişmedi).
+ * 4. Sağ Kalan, oyun boyunca bir kez kendini otomatik kurtarır.
+ * 5. Hiçbiri geçerli değilse normal vampir saldırısı işler.
+ */
 function geceyiUygula(
   durum: OyunDurumu,
   rastgele: () => number = guvenliRastgele,
-): { oyuncular: Oyuncu[]; olen: number | null; hedef: number | null } {
+): { oyuncular: Oyuncu[]; olen: number | null; hedef: number | null; ozelDurum: GeceOzelDurum } {
+  if (durum.geceKutsandiMi) {
+    return { oyuncular: durum.oyuncular, olen: null, hedef: null, ozelDurum: "kutsanmis" };
+  }
+
   const hedef = vampirKurbani(durum.vampirSecimleri, rastgele);
-  if (hedef === null) return { oyuncular: durum.oyuncular, olen: null, hedef };
-  if (durum.korunanlar.includes(hedef)) return { oyuncular: durum.oyuncular, olen: null, hedef };
+  if (hedef === null) return { oyuncular: durum.oyuncular, olen: null, hedef, ozelDurum: null };
+
+  if (hedef === durum.nobetteOlanVeteran) {
+    const saldiran = Object.entries(durum.vampirSecimleri).find(([, h]) => h === hedef)?.[0];
+    if (saldiran !== undefined) {
+      const vampirId = Number(saldiran);
+      const oyuncular = durum.oyuncular.map((o) =>
+        o.id === vampirId ? { ...o, hayatta: false, olumNedeni: "veteran" as const, olumGunu: durum.gun } : o,
+      );
+      return { oyuncular, olen: vampirId, hedef, ozelDurum: "veteranOldu" };
+    }
+  }
+
+  if (durum.korunanlar.includes(hedef)) {
+    return { oyuncular: durum.oyuncular, olen: null, hedef, ozelDurum: "doktorKurtardi" };
+  }
+
+  const hedefOyuncu = oyuncuBul(durum.oyuncular, hedef);
+  if (hedefOyuncu?.rol === "sagkalan" && !hedefOyuncu.ekstraCanKullanildiMi) {
+    const oyuncular = durum.oyuncular.map((o) =>
+      o.id === hedef ? { ...o, ekstraCanKullanildiMi: true } : o,
+    );
+    return { oyuncular, olen: null, hedef, ozelDurum: "sagkalanKurtuldu" };
+  }
+
   const oyuncular = durum.oyuncular.map((o) =>
     o.id === hedef ? { ...o, hayatta: false, olumNedeni: "vampir" as const, olumGunu: durum.gun } : o,
   );
-  return { oyuncular, olen: hedef, hedef };
+  return { oyuncular, olen: hedef, hedef, ozelDurum: null };
 }
 
 export function oylariSay(oylar: Record<number, number | null>): OylamaSonucu {
@@ -616,6 +729,23 @@ export function oyunReducer(durum: OyunDurumu, aksiyon: OyunAksiyonu): OyunDurum
               ...durum.gozcuIncelemeleri,
               ...Object.fromEntries(grup.map((o) => [o.id, secim])),
             };
+          } else if (rolId === "kutsanmis" && secim === KUTSAMA_SECIMI) {
+            // Grup birden fazlaysa (nadir kurulum) hakkını henüz kullanmamış
+            // HEPSİ aynı anda tüketilir — moderatörlü modda tek ekrandan
+            // yönetildiği için gruba özel ayrım yapılamaz.
+            islenmis.geceKutsandiMi = true;
+            const uygunIdler = new Set(grup.filter((o) => !o.kutsamaKullanildiMi).map((o) => o.id));
+            islenmis.oyuncular = durum.oyuncular.map((o) =>
+              uygunIdler.has(o.id) ? { ...o, kutsamaKullanildiMi: true } : o,
+            );
+          } else if (rolId === "veteran" && secim === TETIKTE_OL_SECIMI) {
+            const ilkUygun = grup.find((o) => o.veteranHakKalan > 0);
+            if (ilkUygun) {
+              islenmis.nobetteOlanVeteran = ilkUygun.id;
+              islenmis.oyuncular = durum.oyuncular.map((o) =>
+                o.id === ilkUygun.id ? { ...o, veteranHakKalan: o.veteranHakKalan - 1 } : o,
+              );
+            }
           }
         }
 
@@ -643,6 +773,16 @@ export function oyunReducer(durum: OyunDurumu, aksiyon: OyunAksiyonu): OyunDurum
           islenmis.sonKorunanlar = { ...durum.sonKorunanlar, [oyuncu.id]: secim };
         } else if (oyuncu.rol === "gozcu") {
           islenmis.gozcuIncelemeleri = { ...durum.gozcuIncelemeleri, [oyuncu.id]: secim };
+        } else if (oyuncu.rol === "kutsanmis" && secim === KUTSAMA_SECIMI && !oyuncu.kutsamaKullanildiMi) {
+          islenmis.geceKutsandiMi = true;
+          islenmis.oyuncular = durum.oyuncular.map((o) =>
+            o.id === oyuncu.id ? { ...o, kutsamaKullanildiMi: true } : o,
+          );
+        } else if (oyuncu.rol === "veteran" && secim === TETIKTE_OL_SECIMI && oyuncu.veteranHakKalan > 0) {
+          islenmis.nobetteOlanVeteran = oyuncu.id;
+          islenmis.oyuncular = durum.oyuncular.map((o) =>
+            o.id === oyuncu.id ? { ...o, veteranHakKalan: o.veteranHakKalan - 1 } : o,
+          );
         }
       }
 
@@ -659,17 +799,35 @@ export function oyunReducer(durum: OyunDurumu, aksiyon: OyunAksiyonu): OyunDurum
 
     case "safagiGec": {
       if (durum.safakAcildi) return durum;
-      const { oyuncular, olen, hedef } = geceyiUygula(durum, aksiyon.rastgele);
+      const { oyuncular, olen, ozelDurum } = geceyiUygula(durum, aksiyon.rastgele);
       const olenOyuncu = oyuncuBul(oyuncular, olen);
-      const kurtarildi = hedef !== null && durum.korunanlar.includes(hedef);
       const kazanan = kazananKontrol(oyuncular);
-      const metin = olenOyuncu
-        ? `${durum.gun}. gece: ${olenOyuncu.ad} vampirlere kurban gitti.${
-            durum.ayarlar.olulerinRoluAcik ? ` Kimliği: ${ROLLER[olenOyuncu.rol].ad}.` : ""
-          }`
-        : kurtarildi
-          ? `${durum.gun}. gece: Doktor tam zamanında yetişti, kimse ölmedi.`
-          : `${durum.gun}. gece: Köyde kimse ölmedi.`;
+
+      let metin: string;
+      if (ozelDurum === "kutsanmis") {
+        // Kimin kutsadığı söylenmez — doktorun kimliği gizli kaldığı gibi.
+        metin = `${durum.gun}. gece: Kutsanmış bu geceyi kutsadı, hiçbir kötülük işleyemedi.`;
+      } else if (ozelDurum === "veteranOldu" && olenOyuncu) {
+        // "Tetikteki veterana saldırırken öldü" ifadesi, ölenin vampir olduğunu
+        // dolaylı yoldan açıklar; bu yüzden yalnızca kimlikler zaten açıksa
+        // kullanılır — kapalıyken normal (kimliği gizli) ölüm metnine düşülür.
+        metin = durum.ayarlar.olulerinRoluAcik
+          ? `${durum.gun}. gece: ${olenOyuncu.ad}, tetikteki bir Veteran'a saldırırken öldürüldü! Kimliği: ${ROLLER[olenOyuncu.rol].ad}.`
+          : `${durum.gun}. gece: ${olenOyuncu.ad} gece bir çatışmada öldürüldü. Kimliği açıklanmıyor.`;
+      } else if (ozelDurum === "sagkalanKurtuldu") {
+        // Kimin sağ kaldığı söylenmez — bu, yaşayan bir oyuncunun rolünü açık
+        // ederdi (ölülerin kimliği ayarı bunu kapsamaz, canlılar hiç açıklanmaz).
+        metin = `${durum.gun}. gece: Sağ Kalan son anda kendini kurtardı, kimse ölmedi.`;
+      } else if (olenOyuncu) {
+        metin = `${durum.gun}. gece: ${olenOyuncu.ad} vampirlere kurban gitti.${
+          durum.ayarlar.olulerinRoluAcik ? ` Kimliği: ${ROLLER[olenOyuncu.rol].ad}.` : ""
+        }`;
+      } else if (ozelDurum === "doktorKurtardi") {
+        metin = `${durum.gun}. gece: Doktor tam zamanında yetişti, kimse ölmedi.`;
+      } else {
+        metin = `${durum.gun}. gece: Köyde kimse ölmedi.`;
+      }
+
       return {
         ...durum,
         oyuncular,
@@ -802,11 +960,15 @@ export function oyunReducer(durum: OyunDurumu, aksiyon: OyunAksiyonu): OyunDurum
     // Rövanş: isimler, oturma düzeni, rol dağılımı ve ayarlar korunur;
     // yalnızca kura yeniden çekilir. Skor tablosu ayrı sakланdığı için sürer.
     case "ayniMasaylaYeniOyun": {
-      if (durum.asama !== "bitis") return durum;
+      // Normalde yalnızca bitişten (rövanş) çağrılır; ama "Tekrar başla"
+      // pratik çözümü olarak GÜNDÜZ ekranlarından da (hata/yanlış anlaşılma
+      // sonrası masayı sıfırdan başlatmak için) tetiklenebilir. Kurulum
+      // aşamalarında (henüz oyuncu/rol yok) anlamsız olduğundan engellenir.
+      if (durum.asama === "kurulum" || durum.asama === "mod-kadro") return durum;
       const isimler = durum.oyuncular.map((o) => o.ad);
       const fotolar = durum.oyuncular.map((o) => o.foto);
       const dagilim: Record<RolId, number> = {
-        vampir: 0, doktor: 0, gozcu: 0, koylu: 0, soytari: 0, sagkalan: 0,
+        vampir: 0, doktor: 0, gozcu: 0, koylu: 0, soytari: 0, sagkalan: 0, kutsanmis: 0, veteran: 0,
       };
       durum.oyuncular.forEach((o) => { dagilim[o.rol]++; });
       const oyuncular = oyunculariOlustur(isimler, dagilim, aksiyon.rastgele, fotolar);

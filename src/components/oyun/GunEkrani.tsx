@@ -27,6 +27,13 @@ interface GunEkraniProps {
   onVedaBaslat?: (oyuncuId: number) => void;
   onVedaKaydet?: (gifUrl: string, gifId: string, kelime: string | null) => void;
   onVedaAtla?: () => void;
+  /**
+   * Pratik çözüm: oyunun ortasında bir hata/yanlış anlaşılma yüzünden masayı
+   * baştan almak istendiğinde, tam sıfırlamaya (kurulumu yeniden doldurmaya)
+   * ya da eli hızlıca bitirmeye çalışmak yerine — aynı isimler/dağılım/ayarlarla
+   * yeni bir kura çekip doğrudan dağıtıma döner. Yalnızca sağlanırsa gösterilir.
+   */
+  onTekrarBasla?: () => void;
 }
 
 export function GunEkrani(props: GunEkraniProps) {
@@ -47,6 +54,7 @@ function SafakBolumu({
   onVedaBaslat,
   onVedaKaydet,
   onVedaAtla,
+  onTekrarBasla,
 }: GunEkraniProps) {
   if (!durum.safakAcildi) {
     return (
@@ -60,6 +68,19 @@ function SafakBolumu({
         <Buton tamGenislik onClick={onSafagiGec}>
           ☀️ Köyü uyandır
         </Buton>
+        {onTekrarBasla && (
+          <Buton
+            tamGenislik
+            ton="hayalet"
+            onClick={() => {
+              if (window.confirm("Masa aynı isim/dağılım/ayarlarla baştan alınsın mı? Bu oyundaki ilerleme silinecek.")) {
+                onTekrarBasla();
+              }
+            }}
+          >
+            🔁 Tekrar başla
+          </Buton>
+        )}
       </div>
     );
   }

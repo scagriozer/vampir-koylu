@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import {
+  KUTSAMA_SECIMI,
   ROLLER,
+  TETIKTE_OL_SECIMI,
   doktorYasakHedef,
   geceSirasindaki,
   hayattaOlanlar,
@@ -17,16 +19,17 @@ interface GeceEkraniProps {
   onHedefSec: (hedefId: number) => void;
   onSirayiTamamla: () => void;
   /**
-   * "Sıra bende" dokunuşuyla gerçek ekran arasına sabit bir bekleme koyar.
-   * Görevi olan oyuncu (hedef seçer) ile olmayan (tek dokunuşla geçer) arasındaki
-   * el değiştirme SÜRESİ farklı olursa, bu fark başlı başına bir sızıntıdır — hızlı
-   * geçen köylüdür, yavaş geçen görev sahibidir. Sabit bekleme bu farkı yok eder.
-   * Ağ üzerinden oyunda cihaz zaten el değiştirmediği için (bkz. AgOyunu) false verilir.
+   * "Cihaz X'de" devir ekranında "Sıra bende" butonunu kısa bir süre devre
+   * dışı bırakır ("El değişiyor…"), telefon fiziksel olarak el değiştirirken
+   * yanlışlıkla/erkenden dokunulmasını engeller. Görevi olan oyuncu ile
+   * olmayan arasında bu bekleme SÜRESİ aynıdır, rol farkı sızdırmaz.
+   * Ağ üzerinden oyunda cihaz zaten el değiştirmediği için (bkz. AgOyunu)
+   * false verilir — buton hiç bloklanmaz.
    */
   sayimliBekleme?: boolean;
 }
 
-const BEKLEME_SURESI_MS = 3000;
+const EL_DEGISIYOR_SURESI_MS = 2000;
 
 /**
  * Gece, rol çağırarak değil, cihazı koltuk sırasıyla HERKESE gezdirerek işler.
@@ -38,14 +41,14 @@ export function GeceEkrani({ durum, onHedefSec, onSirayiTamamla, sayimliBekleme 
   const oyuncu = geceSirasindaki(durum);
   // Bileşen her sırada `key` ile sıfırlanır (bkz. VampirKoyluOyun).
   const [devralindi, setDevralindi] = useState(false);
-  const [beklemeBitti, setBeklemeBitti] = useState(!sayimliBekleme);
+  const [elDegisiyor, setElDegisiyor] = useState(sayimliBekleme);
   const [gozcuRaporu, setGozcuRaporu] = useState(false);
 
   useEffect(() => {
-    if (!devralindi || !sayimliBekleme) return;
-    const zamanlayici = setTimeout(() => setBeklemeBitti(true), BEKLEME_SURESI_MS);
+    if (!sayimliBekleme) return;
+    const zamanlayici = setTimeout(() => setElDegisiyor(false), EL_DEGISIYOR_SURESI_MS);
     return () => clearTimeout(zamanlayici);
-  }, [devralindi, sayimliBekleme]);
+  }, [sayimliBekleme]);
 
   if (!oyuncu) return null;
 
@@ -54,39 +57,41 @@ export function GeceEkrani({ durum, onHedefSec, onSirayiTamamla, sayimliBekleme 
   const secim = durum.buSiradakiSecim;
   const hedefOyuncu = oyuncuBul(durum.oyuncular, secim);
 
-  // — 1. Cihaz devri: bu ekran her oyuncuda kelimesi kelimesine aynı —
+  // — 1. Cihaz devri: bu ekran her oyuncuda kelimesi kelimesine aynı. "Sıra
+  // bende" telefon fiziksel olarak el değiştirirken kısa süre devre dışı —
+  // görevi olan/olmayan herkeste aynı süre, rol farkı ele vermez. —
   if (!devralindi) {
     return (
       <div className="space-y-6">
         <Baslik
           ustBaslik={`${durum.gun}. gece · sıra ${durum.geceSira + 1}/${hayatta.length}`}
           baslik={`Cihaz ${oyuncu.ad}'de`}
-          aciklama="Ekranı kimse görmesin. Sıra herkese gelecek; gece görevin olsun ya da olmasın."
+          aciklama={
+            elDegisiyor
+              ? "El değişiyor… Ekranı kimse görmesin."
+              : "Ekranı kimse görmesin. Sıra herkese gelecek; gece görevin olsun ya da olmasın."
+          }
         />
         <div className="flex justify-center py-8 text-7xl" aria-hidden>
           🌙
         </div>
-        <Buton tamGenislik onClick={() => setDevralindi(true)}>
-          👁️ Sıra bende
+        <Buton tamGenislik disabled={elDegisiyor} onClick={() => setDevralindi(true)}>
+          {elDegisiyor ? "🤝 El değişiyor…" : "👁️ Sıra bende"}
         </Buton>
       </div>
     );
   }
 
-  // — 2. Sabit bekleme: görev olsun olmasın bu ekran aynı süre kalır, bkz. yukarı —
-  if (!beklemeBitti) {
-    return (
-      <div className="space-y-6">
-        <Baslik ustBaslik={`${durum.gun}. gece`} baslik="Hazırlan…" aciklama="Ekran birazdan açılacak." />
-        <div className="flex justify-center py-10" aria-hidden>
-          <span className="inline-block h-16 w-16 animate-spin rounded-full border-4 border-white/15 border-t-amber-300" />
-        </div>
-      </div>
-    );
-  }
+  // Kutsanmış/Veteran hakkını tükettiyse ya da rolün zaten geceGörevi yoksa,
+  // aynı "görevsiz" ekranı görür — devir dışına bakan hiçbir fark bırakmaz.
+  const gorevYok =
+    !rol.geceGorevi ||
+    (oyuncu.rol === "kutsanmis" && oyuncu.kutsamaKullanildiMi) ||
+    (oyuncu.rol === "veteran" && oyuncu.veteranHakKalan <= 0);
 
-  // — Gece görevi olmayan roller: aynı sayıda dokunuşla akışa katılır —
-  if (!rol.geceGorevi) {
+  // — Gece görevi olmayan (ya da hakkı tükenmiş) roller: aynı sayıda
+  // dokunuşla akışa katılır —
+  if (gorevYok) {
     return (
       <div className="space-y-6">
         <Baslik ustBaslik={`${durum.gun}. gece`} baslik="Bu gece uyuyorsun" aciklama={rol.gorev} />
@@ -96,6 +101,62 @@ export function GeceEkrani({ durum, onHedefSec, onSirayiTamamla, sayimliBekleme 
         <Buton tamGenislik ton="ikincil" onClick={onSirayiTamamla}>
           🔒 Kapat · sıradakine ver
         </Buton>
+      </div>
+    );
+  }
+
+  // — Kutsanmış: kişi değil, KARAR seçer (oyun boyunca bir kez) —
+  if (oyuncu.rol === "kutsanmis") {
+    return (
+      <div className="space-y-6">
+        <Baslik ustBaslik={`${durum.gun}. gece`} baslik="Bu geceyi kutsayacak mısın?" aciklama={rol.gorev} />
+        <div className="flex justify-center py-8 text-7xl" aria-hidden>
+          🙏
+        </div>
+        <div className="space-y-2">
+          <Buton
+            tamGenislik
+            onClick={() => {
+              onHedefSec(KUTSAMA_SECIMI);
+              onSirayiTamamla();
+            }}
+          >
+            🙏 Bu geceyi kutsa · hakkımı kullan
+          </Buton>
+          <Buton tamGenislik ton="ikincil" onClick={onSirayiTamamla}>
+            Pas geç, hakkımı sakla
+          </Buton>
+        </div>
+      </div>
+    );
+  }
+
+  // — Veteran: sınırlı sayıda "tetikte ol" hakkı, yine kişi değil karar seçer —
+  if (oyuncu.rol === "veteran") {
+    return (
+      <div className="space-y-6">
+        <Baslik
+          ustBaslik={`${durum.gun}. gece · kalan hak: ${oyuncu.veteranHakKalan}`}
+          baslik="Bu gece tetikte olacak mısın?"
+          aciklama={rol.gorev}
+        />
+        <div className="flex justify-center py-8 text-7xl" aria-hidden>
+          🎖️
+        </div>
+        <div className="space-y-2">
+          <Buton
+            tamGenislik
+            onClick={() => {
+              onHedefSec(TETIKTE_OL_SECIMI);
+              onSirayiTamamla();
+            }}
+          >
+            🚨 Tetikte ol
+          </Buton>
+          <Buton tamGenislik ton="ikincil" onClick={onSirayiTamamla}>
+            Pas geç
+          </Buton>
+        </div>
       </div>
     );
   }

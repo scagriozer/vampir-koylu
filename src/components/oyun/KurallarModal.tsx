@@ -3,7 +3,16 @@
 import { ROLLER, type RolId } from "@/lib/oyun/vampirKoylu";
 import { Buton } from "./ui";
 
-const ROL_SIRASI: RolId[] = ["vampir", "doktor", "gozcu", "koylu", "soytari", "sagkalan"];
+const ROL_SIRASI: RolId[] = [
+  "vampir",
+  "doktor",
+  "gozcu",
+  "koylu",
+  "kutsanmis",
+  "veteran",
+  "soytari",
+  "sagkalan",
+];
 
 const AKIS = [
   {
